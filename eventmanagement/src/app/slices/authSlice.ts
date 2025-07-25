@@ -1,6 +1,8 @@
 import {createSlice, type PayloadAction} from '@reduxjs/toolkit';
 
 interface User {
+  createdAt: string | number | Date;
+  roles: any;
   id: number
   firstName: string
   lastName: string

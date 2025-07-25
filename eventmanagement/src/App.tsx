@@ -1,29 +1,24 @@
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+import { AppProviders } from '@/app/providers/AppProviders'
+import { AppRouter } from '@/router/AppRouter'
+import { Toaster } from 'sonner'
+import './App.css'
 
 function App() {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-4">
-      <Card className="w-96">
-        <CardHeader>
-          <CardTitle>Event Management System</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-muted-foreground">
-            Shadcn/ui components are working correctly!
-          </p>
-          <div className="flex gap-2">
-            <Button>Primary Button</Button>
-            <Button variant="outline">Outline Button</Button>
-          </div>
-          <div className="flex gap-2">
-            <Badge>Success</Badge>
-            <Badge variant="destructive">Error</Badge>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+    <AppProviders>
+      <AppRouter />
+      <Toaster 
+        position="top-right" 
+        toastOptions={{
+          duration: 4000,
+          style: {
+            background: 'hsl(var(--background))',
+            color: 'hsl(var(--foreground))',
+            border: '1px solid hsl(var(--border))',
+          },
+        }}
+      />
+    </AppProviders>
   )
 }
 
