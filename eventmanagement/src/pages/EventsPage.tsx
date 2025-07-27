@@ -1,13 +1,13 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { SearchBox } from '@/components/molecules'
+import { EventCard } from '@/components/organisms'
 import { Icon, Badge } from '@/components/atoms'
+import { EventDto } from '@/shared/types/domain'
 
 // Mock data for Phase 1
-const mockEvents = [
+const mockEvents: EventDto[] = [
   {
     id: 1,
     title: 'React Conference 2024',
@@ -16,13 +16,19 @@ const mockEvents = [
     endDateTime: '2024-10-15T17:00:00',
     venue: 'Tech Center',
     address: '123 Tech Street, San Francisco, CA',
-    category: 'Technology',
-    eventType: 'Conference',
+    city: 'San Francisco',
+    country: 'USA',
     capacity: 500,
+    eventType: 'Conference',
+    categoryId: 1,
+    categoryName: 'Technology',
     currentRegistrations: 450,
     remainingCapacity: 50,
-    primaryImageUrl: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400&h=250&fit=crop',
     isRegistrationOpen: true,
+    primaryImageUrl: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400&h=250&fit=crop',
+    images: [],
+    createdAt: '2024-09-01T10:00:00',
+    updatedAt: '2024-09-01T10:00:00',
     isUserRegistered: false,
   },
   {
@@ -33,13 +39,19 @@ const mockEvents = [
     endDateTime: '2024-10-20T18:00:00',
     venue: 'Business Hub',
     address: '456 Business Ave, New York, NY',
-    category: 'Business',
-    eventType: 'Workshop',
+    city: 'New York',
+    country: 'USA',
     capacity: 100,
+    eventType: 'Workshop',
+    categoryId: 2,
+    categoryName: 'Business',
     currentRegistrations: 75,
     remainingCapacity: 25,
-    primaryImageUrl: 'https://images.unsplash.com/photo-1556761175-b413da4baf72?w=400&h=250&fit=crop',
     isRegistrationOpen: true,
+    primaryImageUrl: 'https://images.unsplash.com/photo-1556761175-b413da4baf72?w=400&h=250&fit=crop',
+    images: [],
+    createdAt: '2024-09-01T10:00:00',
+    updatedAt: '2024-09-01T10:00:00',
     isUserRegistered: false,
   },
   {
@@ -50,13 +62,19 @@ const mockEvents = [
     endDateTime: '2024-10-25T21:00:00',
     venue: 'Modern Gallery',
     address: '789 Art District, Los Angeles, CA',
-    category: 'Arts',
-    eventType: 'Exhibition',
+    city: 'Los Angeles',
+    country: 'USA',
     capacity: 200,
+    eventType: 'Exhibition',
+    categoryId: 3,
+    categoryName: 'Arts',
     currentRegistrations: 100,
     remainingCapacity: 100,
-    primaryImageUrl: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400&h=250&fit=crop',
     isRegistrationOpen: true,
+    primaryImageUrl: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400&h=250&fit=crop',
+    images: [],
+    createdAt: '2024-09-01T10:00:00',
+    updatedAt: '2024-09-01T10:00:00',
     isUserRegistered: true,
   },
   {
@@ -67,13 +85,19 @@ const mockEvents = [
     endDateTime: '2024-11-05T16:00:00',
     venue: 'Innovation Center',
     address: '321 Innovation Blvd, Seattle, WA',
-    category: 'Technology',
-    eventType: 'Conference',
+    city: 'Seattle',
+    country: 'USA',
     capacity: 300,
+    eventType: 'Conference',
+    categoryId: 1,
+    categoryName: 'Technology',
     currentRegistrations: 180,
     remainingCapacity: 120,
-    primaryImageUrl: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=400&h=250&fit=crop',
     isRegistrationOpen: true,
+    primaryImageUrl: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=400&h=250&fit=crop',
+    images: [],
+    createdAt: '2024-09-01T10:00:00',
+    updatedAt: '2024-09-01T10:00:00',
     isUserRegistered: false,
   },
   {
@@ -84,13 +108,19 @@ const mockEvents = [
     endDateTime: '2024-10-30T15:00:00',
     venue: 'Serenity Spa',
     address: '654 Wellness Way, Austin, TX',
-    category: 'Health',
-    eventType: 'Workshop',
+    city: 'Austin',
+    country: 'USA',
     capacity: 50,
+    eventType: 'Workshop',
+    categoryId: 4,
+    categoryName: 'Health',
     currentRegistrations: 45,
     remainingCapacity: 5,
-    primaryImageUrl: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=250&fit=crop',
     isRegistrationOpen: true,
+    primaryImageUrl: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=250&fit=crop',
+    images: [],
+    createdAt: '2024-09-01T10:00:00',
+    updatedAt: '2024-09-01T10:00:00',
     isUserRegistered: false,
   },
   {
@@ -101,13 +131,19 @@ const mockEvents = [
     endDateTime: '2024-11-12T21:00:00',
     venue: 'Entrepreneur Hub',
     address: '987 Startup Ave, San Francisco, CA',
-    category: 'Business',
-    eventType: 'Competition',
+    city: 'San Francisco',
+    country: 'USA',
     capacity: 150,
+    eventType: 'Competition',
+    categoryId: 2,
+    categoryName: 'Business',
     currentRegistrations: 150,
     remainingCapacity: 0,
-    primaryImageUrl: 'https://images.unsplash.com/photo-1559223607-a43c990c692c?w=400&h=250&fit=crop',
     isRegistrationOpen: false,
+    primaryImageUrl: 'https://images.unsplash.com/photo-1559223607-a43c990c692c?w=400&h=250&fit=crop',
+    images: [],
+    createdAt: '2024-09-01T10:00:00',
+    updatedAt: '2024-09-01T10:00:00',
     isUserRegistered: false,
   },
 ]
@@ -124,11 +160,16 @@ export const EventsPage = () => {
   const filteredEvents = mockEvents.filter(event => {
     const matchesSearch = event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          event.description.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesCategory = selectedCategory === 'All' || event.category === selectedCategory
+    const matchesCategory = selectedCategory === 'All' || event.categoryName === selectedCategory
     const matchesEventType = selectedEventType === 'All' || event.eventType === selectedEventType
     
     return matchesSearch && matchesCategory && matchesEventType
   })
+
+  const handleRegister = (eventId: number) => {
+    console.log('Register for event:', eventId)
+    // This will be implemented with the registration API in Phase 2
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-indigo-50/20">
@@ -180,7 +221,7 @@ export const EventsPage = () => {
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-purple-600 mb-1">
-                  {new Set(mockEvents.map(e => e.category)).size}
+                  {new Set(mockEvents.map(e => e.categoryName)).size}
                 </div>
                 <div className="text-sm text-gray-600">Categories</div>
               </div>
@@ -269,154 +310,23 @@ export const EventsPage = () => {
                   <SelectItem value="startDateTime">Date</SelectItem>
                   <SelectItem value="title">Title</SelectItem>
                   <SelectItem value="capacity">Capacity</SelectItem>
-                  <SelectItem value="category">Category</SelectItem>
+                  <SelectItem value="categoryName">Category</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
         </div>
 
-        {/* Events Grid */}
+        {/* Events Grid - Now using EventCard organism */}
         {filteredEvents.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {filteredEvents.map((event, index) => (
               <div key={event.id} className="animate-fade-in" style={{animationDelay: `${0.5 + index * 0.1}s`}}>
-                <Card className="group bg-white/90 backdrop-blur-sm shadow-lg hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 border border-white/20 overflow-hidden h-full">
-                  <div className="relative overflow-hidden">
-                    <img
-                      src={event.primaryImageUrl}
-                      alt={event.title}
-                      className="w-full h-48 object-cover transition-transform duration-700 group-hover:scale-110"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                    
-                    {/* Status Badges */}
-                    <div className="absolute top-4 right-4 flex flex-col gap-2">
-                      {event.remainingCapacity === 0 ? (
-                        <Badge variant="destructive" className="shadow-md">
-                          <Icon name="X" className="w-3 h-3 mr-1" />
-                          Sold Out
-                        </Badge>
-                      ) : event.remainingCapacity <= 10 ? (
-                        <Badge className="bg-orange-500 hover:bg-orange-600 shadow-md">
-                          <Icon name="AlertTriangle" className="w-3 h-3 mr-1" />
-                          {event.remainingCapacity} left
-                        </Badge>
-                      ) : (
-                        <Badge className="bg-green-500 hover:bg-green-600 shadow-md">
-                          <Icon name="CheckCircle" className="w-3 h-3 mr-1" />
-                          {event.remainingCapacity} spots
-                        </Badge>
-                      )}
-                    </div>
-
-                    {event.isUserRegistered && (
-                      <Badge className="absolute top-4 left-4 bg-blue-500 hover:bg-blue-600 shadow-md">
-                        <Icon name="Check" className="w-3 h-3 mr-1" />
-                        Registered
-                      </Badge>
-                    )}
-
-                    {/* Floating Action Button */}
-                    <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-2 group-hover:translate-y-0">
-                      <Button
-                        size="sm"
-                        className="rounded-full bg-white/90 text-gray-900 hover:bg-white backdrop-blur-sm shadow-lg"
-                        asChild
-                      >
-                        <Link to={`/events/${event.id}`}>
-                          <Icon name="Eye" className="w-4 h-4" />
-                        </Link>
-                      </Button>
-                    </div>
-                  </div>
-
-                  <CardContent className="p-6 flex flex-col flex-1">
-                    {/* Category & Type Badges */}
-                    <div className="flex items-center gap-2 mb-3">
-                      <Badge variant="secondary" className="bg-blue-50 text-blue-700 border-blue-200">
-                        {event.category}
-                      </Badge>
-                      <Badge variant="outline" className="border-gray-300 text-gray-600">
-                        {event.eventType}
-                      </Badge>
-                    </div>
-
-                    {/* Title */}
-                    <h3 className="text-xl font-semibold mb-3 text-gray-900 group-hover:text-blue-600 transition-colors line-clamp-2">
-                      {event.title}
-                    </h3>
-
-                    {/* Description */}
-                    <p className="text-gray-600 mb-4 line-clamp-2 text-sm leading-relaxed flex-1">
-                      {event.description}
-                    </p>
-
-                    {/* Event Details */}
-                    <div className="space-y-2 mb-6">
-                      <div className="flex items-center text-sm text-gray-500">
-                        <Icon name="Calendar" className="mr-2 h-4 w-4 text-blue-500" />
-                        {new Date(event.startDateTime).toLocaleDateString('en-US', {
-                          weekday: 'short',
-                          month: 'short',
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
-                      </div>
-                      <div className="flex items-center text-sm text-gray-500">
-                        <Icon name="MapPin" className="mr-2 h-4 w-4 text-red-500" />
-                        <span className="truncate">{event.venue}</span>
-                      </div>
-                      <div className="flex items-center text-sm text-gray-500">
-                        <Icon name="Users" className="mr-2 h-4 w-4 text-green-500" />
-                        {event.currentRegistrations}/{event.capacity} registered
-                      </div>
-                    </div>
-
-                    {/* Progress Bar */}
-                    <div className="w-full bg-gray-200 rounded-full h-2 mb-4">
-                      <div 
-                        className="bg-gradient-to-r from-blue-500 to-indigo-500 h-2 rounded-full transition-all duration-500" 
-                        style={{ width: `${(event.currentRegistrations / event.capacity) * 100}%` }}
-                      ></div>
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div className="flex gap-3 mt-auto">
-                      <Button variant="outline" size="sm" className="flex-1 border-gray-200 hover:border-blue-300 hover:bg-blue-50" asChild>
-                        <Link to={`/events/${event.id}`}>
-                          <Icon name="Eye" className="w-4 h-4 mr-1" />
-                          View Details
-                        </Link>
-                      </Button>
-                      {event.isUserRegistered ? (
-                        <Badge variant="secondary" className="flex-1 justify-center py-2 bg-green-50 text-green-700 border-green-200">
-                          <Icon name="CheckCircle" className="w-4 h-4 mr-1" />
-                          Registered
-                        </Badge>
-                      ) : (
-                        <Button 
-                          size="sm" 
-                          className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-md hover:shadow-lg transition-all duration-300"
-                          disabled={event.remainingCapacity === 0}
-                        >
-                          {event.remainingCapacity === 0 ? (
-                            <>
-                              <Icon name="X" className="w-4 h-4 mr-1" />
-                              Full
-                            </>
-                          ) : (
-                            <>
-                              <Icon name="Calendar" className="w-4 h-4 mr-1" />
-                              Register
-                            </>
-                          )}
-                        </Button>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
+                <EventCard 
+                  event={event}
+                  showActions={true}
+                  onRegister={handleRegister}
+                />
               </div>
             ))}
           </div>

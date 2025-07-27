@@ -10,7 +10,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback, AvatarImage, Badge, Icon } from '@/components/atoms'
-import { useAppSelector } from '@/app/hooks'
+import { useAuth } from '@/shared/hooks/useAuth'
+import { PermissionGuard } from '@/shared/components/PermissionGaurd'
 import { cn } from '@/lib/utils'
 
 export interface HeaderProps {
@@ -20,7 +21,7 @@ export interface HeaderProps {
 
 export const Header = ({ onLogout, className }: HeaderProps) => {
   const navigate = useNavigate()
-  const { user, isAuthenticated } = useAppSelector((state: { auth: any }) => state.auth)
+  const { user, isAuthenticated, hasPermission } = useAuth()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   const navigationItems = [
@@ -28,14 +29,7 @@ export const Header = ({ onLogout, className }: HeaderProps) => {
     { label: 'Categories', href: '/categories', icon: 'Folder' as const },
   ]
 
-  const adminNavigationItems = [
-    { label: 'Dashboard', href: '/admin', icon: 'BarChart3' as const },
-    { label: 'Manage Events', href: '/admin/events', icon: 'Settings' as const },
-    { label: 'Users', href: '/admin/users', icon: 'Users' as const },
-  ]
-
   const userInitials = user ? `${user.firstName[0]}${user.lastName[0]}` : 'U'
-  const isAdmin = user?.roles?.includes('Admin') || false
 
   const handleLogout = () => {
     onLogout?.()
@@ -67,21 +61,19 @@ export const Header = ({ onLogout, className }: HeaderProps) => {
               </Link>
             ))}
             
-            {isAdmin && (
+            {/* Admin Panel - Only for users with admin permissions */}
+            <PermissionGuard permissions={['canAccessAdminPanel']}>
               <>
                 <div className="h-4 w-px bg-gray-300" />
-                {adminNavigationItems.map((item) => (
-                  <Link
-                    key={item.href}
-                    to={item.href}
-                    className="flex items-center space-x-2 text-sm font-medium text-gray-700 hover:text-primary transition-colors"
-                  >
-                    <Icon name={item.icon} className="h-4 w-4" />
-                    <span>{item.label}</span>
-                  </Link>
-                ))}
+                <Link
+                  to="/admin"
+                  className="flex items-center space-x-2 text-sm font-medium text-gray-700 hover:text-primary transition-colors"
+                >
+                  <Icon name="Settings" className="h-4 w-4" />
+                  <span>Admin</span>
+                </Link>
               </>
-            )}
+            </PermissionGuard>
           </nav>
 
           {/* User Actions */}
@@ -180,22 +172,19 @@ export const Header = ({ onLogout, className }: HeaderProps) => {
                 </Link>
               ))}
               
-              {isAdmin && (
+              <PermissionGuard permissions={['canAccessAdminPanel']}>
                 <>
                   <div className="h-px bg-gray-200 my-2" />
-                  {adminNavigationItems.map((item) => (
-                    <Link
-                      key={item.href}
-                      to={item.href}
-                      className="flex items-center space-x-2 rounded-md px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
-                      onClick={() => setMobileMenuOpen(false)}
-                    >
-                      <Icon name={item.icon} className="h-4 w-4" />
-                      <span>{item.label}</span>
-                    </Link>
-                  ))}
+                  <Link
+                    to="/admin"
+                    className="flex items-center space-x-2 rounded-md px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    <Icon name="Settings" className="h-4 w-4" />
+                    <span>Admin Panel</span>
+                  </Link>
                 </>
-              )}
+              </PermissionGuard>
             </div>
           </div>
         )}
