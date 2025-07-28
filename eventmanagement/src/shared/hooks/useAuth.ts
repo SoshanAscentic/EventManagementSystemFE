@@ -2,7 +2,7 @@ import { useMemo, useCallback } from 'react'
 import { useAppSelector, useAppDispatch } from '@/app/hooks'
 import { useGetCurrentUserQuery } from '@/features/auth/api/authApi'
 import { setAuth } from '@/app/slices/authSlice'
-import type { RootState } from '@/app/store'
+import type { RootState } from '@/app/store/store'
 
 interface UserPermissions {
   canViewEvents: boolean

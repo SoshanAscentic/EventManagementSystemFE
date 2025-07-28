@@ -32,12 +32,16 @@ export interface EventImageDto {
 export interface CategoryDto {
   id: number
   name: string
-  description: string
+  description?: string
   isActive: boolean
   eventCount: number
   createdAt: string
+  updatedAt: string
+  color?: string
+  icon?: string
+  parentId?: number
+  level?: number
 }
-
 export interface UserDto {
   id: number
   firstName: string

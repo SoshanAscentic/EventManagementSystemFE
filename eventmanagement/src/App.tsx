@@ -1,24 +1,25 @@
-import { AppProviders } from '@/app/providers/AppProviders'
-import { AppRouter } from '@/router/AppRouter'
-import { Toaster } from 'sonner'
-import './App.css'
+import { AppRouter } from './router/AppRouter'
+import { AppProviders } from './app/providers/AppProviders'
+import { Toaster } from './shared/components/Toaster'
+import { useSignalR } from './shared/hooks/useSignalR'
+import { ErrorBoundary } from './shared/components/ErrorBoundary'
+
+function AppContent() {
+  useSignalR() // Initialize SignalR connection
+
+  return (
+    <>
+      <AppRouter />
+      <Toaster />
+    </>
+  )
+}
 
 function App() {
   return (
-    <AppProviders>
-      <AppRouter />
-      <Toaster 
-        position="top-right" 
-        toastOptions={{
-          duration: 4000,
-          style: {
-            background: 'hsl(var(--background))',
-            color: 'hsl(var(--foreground))',
-            border: '1px solid hsl(var(--border))',
-          },
-        }}
-      />
-    </AppProviders>
+      <AppProviders>
+        <AppContent />
+      </AppProviders>
   )
 }
 

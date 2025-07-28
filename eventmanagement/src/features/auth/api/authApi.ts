@@ -30,7 +30,7 @@ export interface ResetPasswordRequest {
 
 export const authApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
-    login: builder.mutation<ApiResponse<{user: UserDto, roles: string[]}>, LoginRequest>({
+    login: builder.mutation<ApiResponse<UserDto>, LoginRequest>({
       query: (credentials) => ({
         url: '/auth/login',
         method: 'POST',
@@ -45,7 +45,7 @@ export const authApi = baseApi.injectEndpoints({
         body: userData,
       }),
     }),
-    getCurrentUser: builder.query<ApiResponse<{user: UserDto, roles: string[]}>, void>({
+    getCurrentUser: builder.query<ApiResponse<UserDto>, void>({
       query: () => '/auth/me',
       providesTags: ['User'],
     }),
