@@ -2,36 +2,27 @@ import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Avatar, AvatarFallback, AvatarImage, Badge, Icon, Spinner } from '@/components/atoms'
-import { FormField } from '@/components/molecules'
-import { Input } from '@/components/atoms'
+import { ProfileEditForm } from '@/features/users/components/ProfileEditForm'
 import { useAuth } from '@/shared/hooks/useAuth'
 import { useGetMyRegistrationsQuery } from '@/features/registrations/api/registrationsApi'
-import { useGetProfileQuery, useUpdateProfileMutation } from '@/features/users/api/usersApi'
+import { useGetProfileQuery } from '@/features/users/api/usersApi'
 import { formatRelativeTime, formatEventDateTime } from '@/shared/utils/formatters'
 import { Link } from 'react-router-dom'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
 import { useMemo } from 'react'
 
-const profileUpdateSchema = z.object({
-  firstName: z.string().min(1, 'First name is required').max(50, 'First name too long'),
-  lastName: z.string().min(1, 'Last name is required').max(50, 'Last name too long'),
-  phone: z.string().optional(),
-})
-
-type ProfileUpdateData = z.infer<typeof profileUpdateSchema>
-
 export const ProfilePage = () => {
-  const { user, isAuthenticated } = useAuth()
+  const { isAuthenticated } = useAuth()
   const [isEditing, setIsEditing] = useState(false)
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false)
 
   // Fetch user's detailed profile
   const { 
     data: profileData, 
     isLoading: profileLoading, 
-    refetch: refetchProfile 
+    refetch: refetchProfile,
+    error: profileError 
   } = useGetProfileQuery()
 
   // Fetch user's registrations
@@ -45,36 +36,8 @@ export const ProfilePage = () => {
     ascending: false, // Most recent first
   })
 
-  // Update profile mutation
-  const [updateProfile, { isLoading: isUpdating }] = useUpdateProfileMutation()
-
-  const profile = profileData?.data || user
+  const profile = profileData?.data
   const registrations = registrationsData?.data?.items || []
-
-  // Form for editing profile
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-    reset,
-    setValue
-  } = useForm<ProfileUpdateData>({
-    resolver: zodResolver(profileUpdateSchema),
-    defaultValues: {
-      firstName: profile?.firstName || '',
-      lastName: profile?.lastName || '',
-      phone: profile?.phoneNumber || '',
-    }
-  })
-
-  // Update form when profile data loads
-  useState(() => {
-    if (profile) {
-      setValue('firstName', profile.firstName || '')
-      setValue('lastName', profile.lastName || '')
-      setValue('phone', profile.phoneNumber || '')
-    }
-  })
 
   // Generate activity feed from registrations
   const activityFeed = useMemo(() => {
@@ -112,24 +75,19 @@ export const ProfilePage = () => {
     }
   }, [registrations])
 
-  const handleProfileUpdate = async (data: ProfileUpdateData) => {
-    try {
-      await updateProfile({
-        firstName: data.firstName,
-        lastName: data.lastName,
-        phone: data.phone || undefined,
-      }).unwrap()
-      
-      setIsEditing(false)
-      refetchProfile()
-    } catch (error) {
-      console.error('Failed to update profile:', error)
-    }
+  const handleEditSuccess = () => {
+    setIsEditing(false)
+    setShowSuccessMessage(true)
+    refetchProfile()
+    
+    // Hide success message after 5 seconds
+    setTimeout(() => {
+      setShowSuccessMessage(false)
+    }, 5000)
   }
 
-  const handleCancelEdit = () => {
+  const handleEditCancel = () => {
     setIsEditing(false)
-    reset()
   }
 
   if (!isAuthenticated) {
@@ -161,7 +119,7 @@ export const ProfilePage = () => {
     )
   }
 
-  if (!profile) {
+  if (profileError || !profile) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-red-50/30 to-orange-50/20 flex items-center justify-center">
         <div className="text-center">
@@ -191,6 +149,18 @@ export const ProfilePage = () => {
 
       <div className="relative container mx-auto px-4 py-12">
         <div className="max-w-6xl mx-auto">
+          {/* Success Message */}
+          {showSuccessMessage && (
+            <div className="mb-8 animate-fade-in">
+              <Alert className="bg-green-50 border-green-200">
+                <Icon name="CheckCircle" className="h-4 w-4 text-green-600" />
+                <AlertDescription className="text-green-800">
+                  Profile updated successfully! Your changes have been saved.
+                </AlertDescription>
+              </Alert>
+            </div>
+          )}
+
           {/* Profile Header */}
           <div className="animate-fade-in mb-12">
             <Card className="bg-white/90 backdrop-blur-sm shadow-xl border border-white/20 overflow-hidden">
@@ -207,57 +177,7 @@ export const ProfilePage = () => {
               </div>
               
               <CardContent className="pt-20 pb-8 px-8">
-                {isEditing ? (
-                  /* Edit Form */
-                  <form onSubmit={handleSubmit(handleProfileUpdate)} className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <FormField
-                        label="First Name"
-                        error={errors.firstName?.message}
-                        required
-                      >
-                        <Input {...register('firstName')} />
-                      </FormField>
-                      <FormField
-                        label="Last Name"
-                        error={errors.lastName?.message}
-                        required
-                      >
-                        <Input {...register('lastName')} />
-                      </FormField>
-                    </div>
-                    <FormField
-                      label="Phone Number"
-                      error={errors.phone?.message}
-                    >
-                      <Input {...register('phone')} placeholder="Optional" />
-                    </FormField>
-                    <div className="flex gap-3">
-                      <Button 
-                        type="submit" 
-                        disabled={isUpdating}
-                        className="bg-blue-600 hover:bg-blue-700"
-                      >
-                        {isUpdating ? (
-                          <>
-                            <Icon name="Loader2" className="mr-2 h-4 w-4 animate-spin" />
-                            Saving...
-                          </>
-                        ) : (
-                          'Save Changes'
-                        )}
-                      </Button>
-                      <Button 
-                        type="button" 
-                        variant="outline" 
-                        onClick={handleCancelEdit}
-                        disabled={isUpdating}
-                      >
-                        Cancel
-                      </Button>
-                    </div>
-                  </form>
-                ) : (
+                {!isEditing ? (
                   /* Profile Display */
                   <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
                     <div>
@@ -297,6 +217,14 @@ export const ProfilePage = () => {
                           <div className="text-xs text-orange-600">Active</div>
                         </div>
                       </div>
+
+                      {/* Additional Info */}
+                      {profile.phoneNumber && (
+                        <div className="mt-4 flex items-center text-gray-600">
+                          <Icon name="Phone" className="mr-2 h-4 w-4" />
+                          <span>{profile.phoneNumber}</span>
+                        </div>
+                      )}
                     </div>
 
                     <div className="flex gap-3">
@@ -320,249 +248,258 @@ export const ProfilePage = () => {
                       </Button>
                     </div>
                   </div>
+                ) : (
+                  /* Edit Form */
+                  <ProfileEditForm
+                    user={profile}
+                    onSuccess={handleEditSuccess}
+                    onCancel={handleEditCancel}
+                  />
                 )}
               </CardContent>
             </Card>
           </div>
 
-          {/* Profile Tabs */}
-          <div className="animate-fade-in" style={{animationDelay: '0.2s'}}>
-            <Tabs defaultValue="registrations" className="w-full">
-              <TabsList className="grid w-full grid-cols-3 bg-white/80 backdrop-blur-sm shadow-md border border-white/20">
-                <TabsTrigger 
-                  value="registrations"
-                  className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-500 data-[state=active]:text-white data-[state=active]:shadow-md transition-all duration-300"
-                >
-                  My Events ({statistics.totalRegistrations})
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="activity"
-                  className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-500 data-[state=active]:text-white data-[state=active]:shadow-md transition-all duration-300"
-                >
-                  Activity
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="preferences"
-                  className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-500 data-[state=active]:text-white data-[state=active]:shadow-md transition-all duration-300"
-                >
-                  Preferences
-                </TabsTrigger>
-              </TabsList>
+          {/* Profile Tabs - Only show when not editing */}
+          {!isEditing && (
+            <div className="animate-fade-in" style={{animationDelay: '0.2s'}}>
+              <Tabs defaultValue="registrations" className="w-full">
+                <TabsList className="grid w-full grid-cols-3 bg-white/80 backdrop-blur-sm shadow-md border border-white/20">
+                  <TabsTrigger 
+                    value="registrations"
+                    className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-500 data-[state=active]:text-white data-[state=active]:shadow-md transition-all duration-300"
+                  >
+                    My Events ({statistics.totalRegistrations})
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="activity"
+                    className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-500 data-[state=active]:text-white data-[state=active]:shadow-md transition-all duration-300"
+                  >
+                    Activity
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="preferences"
+                    className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-indigo-500 data-[state=active]:text-white data-[state=active]:shadow-md transition-all duration-300"
+                  >
+                    Preferences
+                  </TabsTrigger>
+                </TabsList>
 
-              <TabsContent value="registrations" className="space-y-6">
-                <Card className="bg-white/80 backdrop-blur-sm shadow-lg border border-white/20 hover:shadow-xl transition-all duration-300">
-                  <CardHeader>
-                    <CardTitle className="flex items-center justify-between text-xl">
-                      <div className="flex items-center">
-                        <Icon name="Calendar" className="mr-3 h-5 w-5 text-blue-600" />
-                        Event Registrations
-                      </div>
-                      <Button variant="outline" size="sm" asChild>
-                        <Link to="/registrations">
-                          View All
-                        </Link>
-                      </Button>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {registrationsLoading ? (
-                      <div className="space-y-4">
-                        {[...Array(3)].map((_, i) => (
-                          <div key={i} className="animate-pulse">
-                            <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                            <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : registrationsError ? (
-                      <div className="text-center py-8">
-                        <Icon name="AlertCircle" className="h-12 w-12 text-red-500 mx-auto mb-4" />
-                        <p className="text-gray-600">Unable to load your registrations.</p>
-                      </div>
-                    ) : registrations.length > 0 ? (
-                      <div className="space-y-4">
-                        {registrations.slice(0, 5).map((registration) => (
-                          <div
-                            key={registration.id}
-                            className="flex items-center justify-between p-6 border border-gray-100 rounded-xl bg-gradient-to-r from-gray-50 to-blue-50/30 hover:from-white hover:to-blue-50/50 transition-all duration-300 hover:shadow-md"
-                          >
-                            <div className="flex-1">
-                              <h3 className="font-semibold text-gray-900 mb-2 text-lg">
-                                {registration.eventTitle || 'Event Title Unavailable'}
-                              </h3>
-                              <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
-                                <div className="flex items-center">
-                                  <Icon name="Calendar" className="mr-1 h-4 w-4 text-blue-500" />
-                                  {formatEventDateTime(registration.eventStartDateTime, registration.eventEndDateTime)}
-                                </div>
-                                <div className="flex items-center">
-                                  <Icon name="MapPin" className="mr-1 h-4 w-4 text-red-500" />
-                                  {registration.venue || 'Venue TBD'}
-                                </div>
-                                <div className="flex items-center">
-                                  <Icon name="Clock" className="mr-1 h-4 w-4 text-green-500" />
-                                  Registered {formatRelativeTime(registration.registeredAt)}
-                                </div>
-                              </div>
-                            </div>
-                            <div className="flex items-center space-x-3">
-                              <Badge
-                                className={
-                                  registration.status === 'Active' 
-                                    ? 'bg-green-100 text-green-800 border-green-200' 
-                                    : registration.status === 'Cancelled'
-                                    ? 'bg-red-100 text-red-800 border-red-200'
-                                    : 'bg-gray-100 text-gray-800 border-gray-200'
-                                }
-                              >
-                                {registration.status || 'Unknown'}
-                              </Badge>
-                              <Button variant="outline" size="sm" asChild className="bg-white hover:bg-blue-50 border-gray-200 hover:border-blue-300 transition-colors">
-                                <Link to={`/events/${registration.eventId}`}>
-                                  View Event
-                                </Link>
-                              </Button>
-                            </div>
-                          </div>
-                        ))}
-                        {registrations.length > 5 && (
-                          <div className="text-center pt-4">
-                            <Button variant="outline" asChild>
-                              <Link to="/registrations">
-                                View All {registrations.length} Events
-                                <Icon name="ArrowRight" className="ml-2 h-4 w-4" />
-                              </Link>
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="text-center py-12">
-                        <Icon name="Calendar" className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                        <h3 className="text-xl font-semibold text-gray-900 mb-2">No Events Yet</h3>
-                        <p className="text-gray-600 mb-6">You haven't registered for any events. Discover amazing events to join!</p>
-                        <Button asChild>
-                          <Link to="/events">
-                            <Icon name="Search" className="mr-2 h-4 w-4" />
-                            Browse Events
+                <TabsContent value="registrations" className="space-y-6">
+                  <Card className="bg-white/80 backdrop-blur-sm shadow-lg border border-white/20 hover:shadow-xl transition-all duration-300">
+                    <CardHeader>
+                      <CardTitle className="flex items-center justify-between text-xl">
+                        <div className="flex items-center">
+                          <Icon name="Calendar" className="mr-3 h-5 w-5 text-blue-600" />
+                          Event Registrations
+                        </div>
+                        <Button variant="outline" size="sm" asChild>
+                          <Link to="/registrations">
+                            View All
                           </Link>
                         </Button>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="activity" className="space-y-6">
-                <Card className="bg-white/80 backdrop-blur-sm shadow-lg border border-white/20 hover:shadow-xl transition-all duration-300">
-                  <CardHeader>
-                    <CardTitle className="flex items-center text-xl">
-                      <Icon name="Activity" className="mr-3 h-5 w-5 text-blue-600" />
-                      Recent Activity
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {activityFeed.length > 0 ? (
-                      <div className="space-y-4">
-                        {activityFeed.map((activity) => (
-                          <div key={activity.id} className="flex items-start space-x-4 p-4 rounded-xl bg-gradient-to-r from-gray-50 to-blue-50/30 hover:from-white hover:to-blue-50/50 transition-all duration-300 border border-gray-100 hover:border-blue-200">
-                            <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-blue-100 to-indigo-200 rounded-xl flex items-center justify-center">
-                              <Icon name={activity.icon as any} className="h-5 w-5 text-blue-600" />
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {registrationsLoading ? (
+                        <div className="space-y-4">
+                          {[...Array(3)].map((_, i) => (
+                            <div key={i} className="animate-pulse">
+                              <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                              <div className="h-3 bg-gray-200 rounded w-1/2"></div>
                             </div>
-                            <div className="flex-1">
-                              <p className="text-gray-900 font-medium">{activity.description}</p>
-                              <p className="text-sm text-gray-500 mt-1">
-                                {formatRelativeTime(activity.timestamp)}
-                              </p>
+                          ))}
+                        </div>
+                      ) : registrationsError ? (
+                        <div className="text-center py-8">
+                          <Icon name="AlertCircle" className="h-12 w-12 text-red-500 mx-auto mb-4" />
+                          <p className="text-gray-600">Unable to load your registrations.</p>
+                        </div>
+                      ) : registrations.length > 0 ? (
+                        <div className="space-y-4">
+                          {registrations.slice(0, 5).map((registration) => (
+                            <div
+                              key={registration.id}
+                              className="flex items-center justify-between p-6 border border-gray-100 rounded-xl bg-gradient-to-r from-gray-50 to-blue-50/30 hover:from-white hover:to-blue-50/50 transition-all duration-300 hover:shadow-md"
+                            >
+                              <div className="flex-1">
+                                <h3 className="font-semibold text-gray-900 mb-2 text-lg">
+                                  {registration.eventTitle || 'Event Title Unavailable'}
+                                </h3>
+                                <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
+                                  <div className="flex items-center">
+                                    <Icon name="Calendar" className="mr-1 h-4 w-4 text-blue-500" />
+                                    {formatEventDateTime(registration.eventStartDateTime, registration.eventEndDateTime)}
+                                  </div>
+                                  <div className="flex items-center">
+                                    <Icon name="MapPin" className="mr-1 h-4 w-4 text-red-500" />
+                                    {registration.venue || 'Venue TBD'}
+                                  </div>
+                                  <div className="flex items-center">
+                                    <Icon name="Clock" className="mr-1 h-4 w-4 text-green-500" />
+                                    Registered {formatRelativeTime(registration.registeredAt)}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="flex items-center space-x-3">
+                                <Badge
+                                  className={
+                                    registration.status === 'Active' 
+                                      ? 'bg-green-100 text-green-800 border-green-200' 
+                                      : registration.status === 'Cancelled'
+                                      ? 'bg-red-100 text-red-800 border-red-200'
+                                      : 'bg-gray-100 text-gray-800 border-gray-200'
+                                  }
+                                >
+                                  {registration.status || 'Unknown'}
+                                </Badge>
+                                <Button variant="outline" size="sm" asChild className="bg-white hover:bg-blue-50 border-gray-200 hover:border-blue-300 transition-colors">
+                                  <Link to={`/events/${registration.eventId}`}>
+                                    View Event
+                                  </Link>
+                                </Button>
+                              </div>
                             </div>
-                            {activity.eventId && (
-                              <Button variant="ghost" size="sm" asChild>
-                                <Link to={`/events/${activity.eventId}`}>
-                                  <Icon name="ExternalLink" className="h-4 w-4" />
+                          ))}
+                          {registrations.length > 5 && (
+                            <div className="text-center pt-4">
+                              <Button variant="outline" asChild>
+                                <Link to="/registrations">
+                                  View All {registrations.length} Events
+                                  <Icon name="ArrowRight" className="ml-2 h-4 w-4" />
                                 </Link>
                               </Button>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="text-center py-12">
-                        <Icon name="Activity" className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                        <h3 className="text-xl font-semibold text-gray-900 mb-2">No Activity Yet</h3>
-                        <p className="text-gray-600">Your activity will appear here as you interact with events.</p>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </TabsContent>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="text-center py-12">
+                          <Icon name="Calendar" className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                          <h3 className="text-xl font-semibold text-gray-900 mb-2">No Events Yet</h3>
+                          <p className="text-gray-600 mb-6">You haven't registered for any events. Discover amazing events to join!</p>
+                          <Button asChild>
+                            <Link to="/events">
+                              <Icon name="Search" className="mr-2 h-4 w-4" />
+                              Browse Events
+                            </Link>
+                          </Button>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
 
-              <TabsContent value="preferences" className="space-y-6">
-                <Card className="bg-white/80 backdrop-blur-sm shadow-lg border border-white/20 hover:shadow-xl transition-all duration-300">
-                  <CardHeader>
-                    <CardTitle className="flex items-center text-xl">
-                      <Icon name="Settings" className="mr-3 h-5 w-5 text-blue-600" />
-                      Account Preferences
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-8">
-                    <div>
-                      <h4 className="font-semibold text-gray-900 mb-4 flex items-center">
-                        <Icon name="Bell" className="mr-2 h-5 w-5 text-orange-500" />
-                        Email Notifications
-                      </h4>
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-gray-50 to-orange-50/30 border border-gray-100">
-                          <div>
-                            <p className="font-medium text-gray-900">Event Reminders</p>
-                            <p className="text-sm text-gray-600">Get notified before events start</p>
-                          </div>
-                          <Button variant="outline" size="sm" className="bg-white hover:bg-orange-50 border-gray-200 hover:border-orange-300 transition-colors">
-                            Enabled
-                          </Button>
+                <TabsContent value="activity" className="space-y-6">
+                  <Card className="bg-white/80 backdrop-blur-sm shadow-lg border border-white/20 hover:shadow-xl transition-all duration-300">
+                    <CardHeader>
+                      <CardTitle className="flex items-center text-xl">
+                        <Icon name="Activity" className="mr-3 h-5 w-5 text-blue-600" />
+                        Recent Activity
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {activityFeed.length > 0 ? (
+                        <div className="space-y-4">
+                          {activityFeed.map((activity) => (
+                            <div key={activity.id} className="flex items-start space-x-4 p-4 rounded-xl bg-gradient-to-r from-gray-50 to-blue-50/30 hover:from-white hover:to-blue-50/50 transition-all duration-300 border border-gray-100 hover:border-blue-200">
+                              <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-blue-100 to-indigo-200 rounded-xl flex items-center justify-center">
+                                <Icon name={activity.icon as any} className="h-5 w-5 text-blue-600" />
+                              </div>
+                              <div className="flex-1">
+                                <p className="text-gray-900 font-medium">{activity.description}</p>
+                                <p className="text-sm text-gray-500 mt-1">
+                                  {formatRelativeTime(activity.timestamp)}
+                                </p>
+                              </div>
+                              {activity.eventId && (
+                                <Button variant="ghost" size="sm" asChild>
+                                  <Link to={`/events/${activity.eventId}`}>
+                                    <Icon name="ExternalLink" className="h-4 w-4" />
+                                  </Link>
+                                </Button>
+                              )}
+                            </div>
+                          ))}
                         </div>
-                        <div className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-gray-50 to-orange-50/30 border border-gray-100">
-                          <div>
-                            <p className="font-medium text-gray-900">New Events</p>
-                            <p className="text-sm text-gray-600">Notifications for new events in your interests</p>
-                          </div>
-                          <Button variant="outline" size="sm" className="bg-white hover:bg-orange-50 border-gray-200 hover:border-orange-300 transition-colors">
-                            Configure
-                          </Button>
+                      ) : (
+                        <div className="text-center py-12">
+                          <Icon name="Activity" className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                          <h3 className="text-xl font-semibold text-gray-900 mb-2">No Activity Yet</h3>
+                          <p className="text-gray-600">Your activity will appear here as you interact with events.</p>
                         </div>
-                      </div>
-                    </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
 
-                    <div>
-                      <h4 className="font-semibold text-gray-900 mb-4 flex items-center">
-                        <Icon name="Shield" className="mr-2 h-5 w-5 text-green-500" />
-                        Privacy & Security
-                      </h4>
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-gray-50 to-green-50/30 border border-gray-100">
-                          <div>
-                            <p className="font-medium text-gray-900">Profile Visibility</p>
-                            <p className="text-sm text-gray-600">Control who can see your profile information</p>
+                <TabsContent value="preferences" className="space-y-6">
+                  <Card className="bg-white/80 backdrop-blur-sm shadow-lg border border-white/20 hover:shadow-xl transition-all duration-300">
+                    <CardHeader>
+                      <CardTitle className="flex items-center text-xl">
+                        <Icon name="Settings" className="mr-3 h-5 w-5 text-blue-600" />
+                        Account Preferences
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-8">
+                      <div>
+                        <h4 className="font-semibold text-gray-900 mb-4 flex items-center">
+                          <Icon name="Bell" className="mr-2 h-5 w-5 text-orange-500" />
+                          Email Notifications
+                        </h4>
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-gray-50 to-orange-50/30 border border-gray-100">
+                            <div>
+                              <p className="font-medium text-gray-900">Event Reminders</p>
+                              <p className="text-sm text-gray-600">Get notified before events start</p>
+                            </div>
+                            <Button variant="outline" size="sm" className="bg-white hover:bg-orange-50 border-gray-200 hover:border-orange-300 transition-colors">
+                              Enabled
+                            </Button>
                           </div>
-                          <Button variant="outline" size="sm" className="bg-white hover:bg-green-50 border-gray-200 hover:border-green-300 transition-colors">
-                            Private
-                          </Button>
-                        </div>
-                        <div className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-gray-50 to-green-50/30 border border-gray-100">
-                          <div>
-                            <p className="font-medium text-gray-900">Password</p>
-                            <p className="text-sm text-gray-600">Change your account password</p>
+                          <div className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-gray-50 to-orange-50/30 border border-gray-100">
+                            <div>
+                              <p className="font-medium text-gray-900">New Events</p>
+                              <p className="text-sm text-gray-600">Notifications for new events in your interests</p>
+                            </div>
+                            <Button variant="outline" size="sm" className="bg-white hover:bg-orange-50 border-gray-200 hover:border-orange-300 transition-colors">
+                              Configure
+                            </Button>
                           </div>
-                          <Button variant="outline" size="sm" className="bg-white hover:bg-green-50 border-gray-200 hover:border-green-300 transition-colors">
-                            Change
-                          </Button>
                         </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            </Tabs>
-          </div>
+
+                      <div>
+                        <h4 className="font-semibold text-gray-900 mb-4 flex items-center">
+                          <Icon name="Shield" className="mr-2 h-5 w-5 text-green-500" />
+                          Privacy & Security
+                        </h4>
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-gray-50 to-green-50/30 border border-gray-100">
+                            <div>
+                              <p className="font-medium text-gray-900">Profile Visibility</p>
+                              <p className="text-sm text-gray-600">Control who can see your profile information</p>
+                            </div>
+                            <Button variant="outline" size="sm" className="bg-white hover:bg-green-50 border-gray-200 hover:border-green-300 transition-colors">
+                              Private
+                            </Button>
+                          </div>
+                          <div className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-gray-50 to-green-50/30 border border-gray-100">
+                            <div>
+                              <p className="font-medium text-gray-900">Password</p>
+                              <p className="text-sm text-gray-600">Change your account password</p>
+                            </div>
+                            <Button variant="outline" size="sm" className="bg-white hover:bg-green-50 border-gray-200 hover:border-green-300 transition-colors">
+                              Change
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+              </Tabs>
+            </div>
+          )}
         </div>
       </div>
     </div>
