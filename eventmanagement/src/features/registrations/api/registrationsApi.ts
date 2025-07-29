@@ -23,7 +23,31 @@ export interface RegistrationDto {
 
 export interface MyRegistrationsParams extends PaginationParams {
   status?: string
-  ascending?: boolean  // Added required parameter
+  ascending?: boolean
+}
+
+// Transform frontend params to backend params with required Ascending
+const transformRegistrationParams = (params: MyRegistrationsParams) => {
+  const transformed: any = { ...params }
+  
+  // ALWAYS include Ascending parameter (required by backend)
+  if ('ascending' in transformed) {
+    transformed.Ascending = transformed.ascending
+    delete transformed.ascending
+  } else {
+    // Default to false (newest first)
+    transformed.Ascending = false
+  }
+  
+  // Clean undefined values
+  const cleaned: Record<string, any> = {}
+  Object.entries(transformed).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '') {
+      cleaned[key] = value
+    }
+  })
+  
+  return cleaned
 }
 
 export const registrationsApi = baseApi.injectEndpoints({
@@ -56,20 +80,17 @@ export const registrationsApi = baseApi.injectEndpoints({
 
     getMyRegistrations: builder.query<PagedResponse<RegistrationDto>, MyRegistrationsParams>({
       query: (params) => {
-        // Clean params and ensure required parameters are included
-        const cleanedParams: Record<string, any> = {}
-        
-        // Always include required Ascending parameter (default to true)
-        cleanedParams.Ascending = params.ascending !== undefined ? params.ascending : true
-        
-        // Include pagination params with correct casing
-        if (params.pageNumber !== undefined) cleanedParams.pageNumber = params.pageNumber
-        if (params.pageSize !== undefined) cleanedParams.pageSize = params.pageSize
-        if (params.status !== undefined) cleanedParams.status = params.status
+        // Ensure we always have default values for required parameters
+        const defaultParams: MyRegistrationsParams = {
+          pageNumber: 1,
+          pageSize: 10,
+          ascending: false, // Default to newest first
+          ...params, // Override with provided params
+        }
         
         return {
           url: '/registrations/my-registrations',
-          params: cleanedParams,
+          params: transformRegistrationParams(defaultParams),
         }
       },
       providesTags: [{ type: 'Registration', id: 'LIST' }],
@@ -82,15 +103,28 @@ export const registrationsApi = baseApi.injectEndpoints({
       pageNumber?: number; 
       pageSize?: number; 
       status?: string;
-      ascending?: boolean;  // Added for consistency
+      ascending?: boolean;
     }>({
-      query: ({ eventId, ascending = true, ...params }) => ({
-        url: `/registrations/event/${eventId}`,
-        params: {
+      query: ({ eventId, ascending = false, ...params }) => {
+        // Transform parameters for backend
+        const transformedParams: any = {
           ...params,
-          Ascending: ascending,  // Include required parameter
-        },
-      }),
+          Ascending: ascending, // Always include required parameter
+        }
+        
+        // Clean undefined values
+        const cleaned: Record<string, any> = {}
+        Object.entries(transformedParams).forEach(([key, value]) => {
+          if (value !== undefined && value !== null && value !== '') {
+            cleaned[key] = value
+          }
+        })
+        
+        return {
+          url: `/registrations/event/${eventId}`,
+          params: cleaned,
+        }
+      },
       providesTags: (result, error, { eventId }) => [
         { type: 'Registration', id: `EVENT_${eventId}` }
       ],
@@ -117,3 +151,5 @@ export const {
   useGetEventRegistrationsQuery,
   useMarkAttendanceMutation,
 } = registrationsApi
+
+export type { RegisterForEventRequest }

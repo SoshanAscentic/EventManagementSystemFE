@@ -11,7 +11,7 @@ export interface UpdateUserProfileRequest {
 export const usersApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     // ===== USER PROFILE OPERATIONS =====
-    
+ 
     getProfile: builder.query<ApiResponse<UserDto>, void>({
       query: () => '/users/profile',
       providesTags: [{ type: 'User', id: 'PROFILE' }],
@@ -31,15 +31,22 @@ export const usersApi = baseApi.injectEndpoints({
 
     // ===== ADMIN USER MANAGEMENT =====
 
-    getUsers: builder.query<PagedResponse<UserDto>, { 
-      searchTerm?: string; 
-      pageNumber?: number; 
+    getUsers: builder.query<PagedResponse<UserDto>, {
+      searchTerm?: string;
+      pageNumber?: number;
       pageSize?: number;
     }>({
-      query: (params) => ({
-        url: '/users',
-        params,
-      }),
+      query: (params) => {
+        const cleanedParams: Record<string, any> = {}
+        if (params.searchTerm) cleanedParams.searchTerm = params.searchTerm
+        if (params.pageNumber) cleanedParams.pageNumber = params.pageNumber
+        if (params.pageSize) cleanedParams.pageSize = params.pageSize
+        
+        return {
+          url: '/users',
+          params: cleanedParams,
+        }
+      },
       providesTags: [{ type: 'User', id: 'LIST' }],
     }),
 

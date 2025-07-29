@@ -16,6 +16,7 @@ import { MyRegistrationsPage } from '@/pages/MyRegistrationsPage'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { EventManagementPage } from '@/pages/EventManagementPage'
 import { CreateEventPage } from '@/pages/CreateEventPage'
+import { EventEditPage } from '@/pages/EventEditPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { UnauthorizedPage } from '@/pages/UnauthorizedPage'
 import { CategoriesPage } from '@/pages/CategoriesPage'
@@ -78,6 +79,7 @@ export const AppRouter = () => {
           <Route index element={<DashboardPage />} />
           <Route path="events" element={<EventManagementPage />} />
           <Route path="events/create" element={<CreateEventPage />} />
+          <Route path="events/:id/edit" element={<EventEditPage />} />
         </Route>
 
         {/* Error Routes */}

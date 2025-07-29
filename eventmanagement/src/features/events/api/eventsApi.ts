@@ -4,13 +4,12 @@ import { ApiResponse, PagedResponse } from '@/shared/types/api'
 import {
   CreateEventRequest,
   UpdateEventRequest,
-  UpdateCapacityRequest,
   EventsQueryParams,
   UpcomingEventsParams,
-  RegisterForEventRequest,
-  CancelRegistrationRequest,
   UploadImageRequest,
-  MarkAttendanceRequest,
+  SetImagePrimaryRequest,
+  DeleteImageRequest,
+  UpdateEventCapacityRequest,
 } from '../types'
 
 // ===== UTILITY FUNCTIONS =====
@@ -29,6 +28,23 @@ const cleanParams = (params: Record<string, any>) => {
   return cleaned
 }
 
+// Transform frontend params to backend params with required Ascending
+const transformQueryParams = (params: EventsQueryParams) => {
+  const transformed = { ...params }
+  
+  // ALWAYS include Ascending parameter (required by backend)
+  if ('ascending' in transformed) {
+    // @ts-ignore - we know this transformation is needed
+    transformed.Ascending = transformed.ascending
+    delete transformed.ascending
+  } else {
+    // Default to true if not provided (ascending order)
+    transformed.Ascending = true
+  }
+  
+  return cleanParams(transformed)
+}
+
 // ===== EVENTS API ENDPOINTS =====
 
 export const eventsApi = baseApi.injectEndpoints({
@@ -37,15 +53,17 @@ export const eventsApi = baseApi.injectEndpoints({
     
     getEvents: builder.query<PagedResponse<EventDto>, EventsQueryParams>({
       query: (params) => {
-        const cleanedParams = cleanParams(params)
-        // Ensure Ascending parameter is always present with a default value
-        if (cleanedParams.Ascending === undefined) {
-          cleanedParams.Ascending = true // Default to ascending order
+        // Ensure we always have default values for required parameters
+        const defaultParams: EventsQueryParams = {
+          pageNumber: 1,
+          pageSize: 10,
+          Ascending: true, // Default to ascending
+          ...params, // Override with provided params
         }
         
         return {
           url: '/events',
-          params: cleanedParams,
+          params: transformQueryParams(defaultParams),
         }
       },
       providesTags: (result) =>
@@ -70,7 +88,7 @@ export const eventsApi = baseApi.injectEndpoints({
       providesTags: [{ type: 'Event', id: 'UPCOMING' }],
     }),
 
-    // ===== CREATE/UPDATE/DELETE OPERATIONS =====
+    // ===== CREATE/UPDATE/DELETE OPERATIONS (Admin only) =====
 
     createEvent: builder.mutation<ApiResponse<EventDto>, CreateEventRequest>({
       query: (eventData) => ({
@@ -97,7 +115,7 @@ export const eventsApi = baseApi.injectEndpoints({
       ],
     }),
 
-    updateEventCapacity: builder.mutation<ApiResponse<void>, UpdateCapacityRequest>({
+    updateEventCapacity: builder.mutation<ApiResponse<void>, UpdateEventCapacityRequest>({
       query: ({ id, newCapacity }) => ({
         url: `/events/${id}/capacity`,
         method: 'PUT',
@@ -121,7 +139,7 @@ export const eventsApi = baseApi.injectEndpoints({
       ],
     }),
 
-    // ===== IMAGE MANAGEMENT =====
+    // ===== IMAGE MANAGEMENT (Admin only) =====
 
     uploadEventImage: builder.mutation<ApiResponse<any>, UploadImageRequest>({
       query: ({ eventId, file, isPrimary }) => {
@@ -132,6 +150,7 @@ export const eventsApi = baseApi.injectEndpoints({
           url: `/events/${eventId}/images?isPrimary=${isPrimary}`,
           method: 'POST',
           body: formData,
+          formData: true,
         }
       },
       invalidatesTags: (result, error, { eventId }) => [
@@ -140,7 +159,7 @@ export const eventsApi = baseApi.injectEndpoints({
       ],
     }),
 
-    setImageAsPrimary: builder.mutation<ApiResponse<void>, { eventId: number; imageId: number }>({
+    setImageAsPrimary: builder.mutation<ApiResponse<void>, SetImagePrimaryRequest>({
       query: ({ eventId, imageId }) => ({
         url: `/events/${eventId}/images/${imageId}/primary`,
         method: 'PUT',
@@ -151,7 +170,7 @@ export const eventsApi = baseApi.injectEndpoints({
       ],
     }),
 
-    deleteEventImage: builder.mutation<ApiResponse<void>, { eventId: number; imageId: number }>({
+    deleteEventImage: builder.mutation<ApiResponse<void>, DeleteImageRequest>({
       query: ({ eventId, imageId }) => ({
         url: `/events/${eventId}/images/${imageId}`,
         method: 'DELETE',

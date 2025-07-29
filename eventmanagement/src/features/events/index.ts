@@ -1,4 +1,3 @@
-// src/features/events/index.ts
 // API exports
 export * from './api/eventsApi'
 
@@ -9,4 +8,15 @@ export * from './types'
 export * from './hooks'
 
 // Component exports
-export * from './components/EventForm'
+export { EventForm } from './components/EventForm'
+
+// Re-export commonly used types for convenience
+export type {
+  CreateEventRequest,
+  UpdateEventRequest,
+  EventsQueryParams,
+  UpcomingEventsParams,
+  EventFilters,
+  EventSortOption,
+  EventStatus,
+} from './types'

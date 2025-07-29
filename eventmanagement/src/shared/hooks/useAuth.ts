@@ -1,10 +1,8 @@
 import { useMemo, useCallback, useEffect } from 'react'
 import { useAppSelector, useAppDispatch } from '@/app/hooks'
 import { useGetCurrentUserQuery } from '@/features/auth/api/authApi'
-import { setAuth, clearAuth, setLoading, setInitialized } from '@/app/slices/authSlice'
+import { setAuth, clearAuth, setLoading } from '@/app/slices/authSlice'
 import type { RootState } from '@/app/store/store'
-import { getTokenFromCookie } from '@/features/auth/api/authApi'
-import { selectUserInfo } from '@/app/slices/authSlice'
 
 interface UserPermissions {
   canViewEvents: boolean
@@ -38,29 +36,27 @@ export const getPermissions = (roles: string[]): UserPermissions => {
 
 export const useAuth = () => {
   const dispatch = useAppDispatch()
-  const { user, isAuthenticated, isLoading: authIsLoading, isInitialized } = useAppSelector(selectUserInfo)
+  const { user, isAuthenticated, isLoading: authLoading } = useAppSelector((state: RootState) => state.auth)
   
-  // Check if we have tokens in cookies
-  const hasTokens = getTokenFromCookie('accessToken') !== null
-  
-  // Only call getCurrentUser if we have tokens and haven't initialized yet
-  const { data, error, isLoading: queryLoading } = useGetCurrentUserQuery(undefined, {
-    skip: !hasTokens || isInitialized
+  const { 
+    data, 
+    isLoading: queryLoading, 
+    error,
+    refetch 
+  } = useGetCurrentUserQuery(undefined, {
+    skip: isAuthenticated || !authLoading, // Skip if already authenticated or not initially loading
   })
 
+  // Update auth state when query succeeds
   useEffect(() => {
-    // If no tokens exist, mark as initialized immediately
-    if (!hasTokens && !isInitialized) {
-      dispatch(setInitialized(true))
+    if (data?.success && data.data && !isAuthenticated) {
+      console.log('Setting auth from API response:', data.data)
+      dispatch(setAuth(data.data))
+    } else if (error && authLoading) {
+      console.log('Auth query failed, clearing auth state')
+      dispatch(clearAuth())
     }
-  }, [hasTokens, isInitialized, dispatch])
-
-  // Handle query completion
-  useEffect(() => {
-    if (hasTokens && (data || error)) {
-      dispatch(setInitialized(true))
-    }
-  }, [data, error, hasTokens, dispatch])
+  }, [data, error, dispatch, isAuthenticated, authLoading])
 
   // Get roles from user object
   const roles = user?.roles || []
@@ -76,6 +72,8 @@ export const useAuth = () => {
     [permissions]
   )
 
+  const isLoading = authLoading || queryLoading
+
   return {
     user,
     roles,
@@ -84,8 +82,9 @@ export const useAuth = () => {
     hasAnyRole,
     hasPermission,
     isAuthenticated: !!user,
-    isLoading: authIsLoading || queryLoading,
-    isInitialized,
+    isLoading,
+    error,
+    refetch,
     isAdmin: hasRole('Admin'),
     isUser: hasRole('User'),
   }

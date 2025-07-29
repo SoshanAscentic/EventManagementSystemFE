@@ -16,12 +16,22 @@ export interface CreateEventRequest {
   categoryId: number               // > 0
 }
 
-export interface UpdateEventRequest extends CreateEventRequest {
+export interface UpdateEventRequest {
   id: number
+  title?: string
+  description?: string
+  startDateTime?: string
+  endDateTime?: string
+  venue?: string
+  address?: string
+  city?: string
+  country?: string
+  capacity?: number
+  eventType?: string
+  categoryId?: number
 }
 
 export interface UpdateCapacityRequest {
-  id: number
   newCapacity: number
 }
 
@@ -34,7 +44,7 @@ export interface EventsQueryParams extends PaginationParams {
   location?: string
   hasAvailableSpots?: boolean
   sortBy?: 'title' | 'startDateTime' | 'createdAt'
-  Ascending?: boolean  // Changed from 'ascending' to 'Ascending' to match backend
+  Ascending?: boolean 
 }
 
 export interface UpcomingEventsParams {
@@ -85,4 +95,30 @@ export interface AdvancedEventFilters extends EventFilters {
   status?: EventStatus
   capacity?: { min: number; max: number }
   registrationCount?: { min: number; max: number }
+}
+
+// ===== IMAGE MANAGEMENT TYPES =====
+
+export interface EventImageDto {
+  id: number
+  url: string
+  isPrimary: boolean
+  altText?: string
+}
+
+export interface SetImagePrimaryRequest {
+  eventId: number
+  imageId: number
+}
+
+export interface DeleteImageRequest {
+  eventId: number
+  imageId: number
+}
+
+// ===== CAPACITY MANAGEMENT TYPES =====
+
+export interface UpdateEventCapacityRequest {
+  id: number
+  newCapacity: number
 }
