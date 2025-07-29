@@ -1,138 +1,49 @@
-// src/features/events/types/index.ts
 import { PaginationParams } from '@/shared/types/api'
 
-// REQUEST/RESPONSE TYPE DEFINITIONS
+// ===== REQUEST/RESPONSE TYPE DEFINITIONS =====
 
 export interface CreateEventRequest {
-  title: string
-  description: string
-  startDateTime: string
-  endDateTime: string
-  venue: string
-  address: string
-  city?: string
-  country?: string
-  capacity: number
-  eventType: string
-  categoryId: number
-  isPrivate?: boolean
-  requiresApproval?: boolean
-  tags?: string[]
+  title: string                    // ≤200 chars
+  description: string              // ≤2000 chars  
+  startDateTime: string            // ISO future date
+  endDateTime: string              // ISO > start
+  venue: string                    // ≤100 chars
+  address: string                  // ≤200 chars
+  city?: string                    // ≤100 chars
+  country?: string                 // ≤100 chars
+  capacity: number                 // > 0, ≤ 10000
+  eventType: string                // Conference | Workshop | etc
+  categoryId: number               // > 0
 }
 
 export interface UpdateEventRequest extends CreateEventRequest {
   id: number
 }
 
+export interface UpdateCapacityRequest {
+  id: number
+  newCapacity: number
+}
+
 export interface EventsQueryParams extends PaginationParams {
   searchTerm?: string
   categoryId?: number
+  eventType?: string
   startDate?: string
   endDate?: string
-  eventType?: string
-  hasAvailableSpots?: boolean
-  isFeatured?: boolean
   location?: string
-  tags?: string[]
-  sortBy?: 'title' | 'startDateTime' | 'createdAt' | 'capacity' | 'registrationCount'
-  ascending?: boolean
-  includePrivate?: boolean
+  hasAvailableSpots?: boolean
+  sortBy?: 'title' | 'startDateTime' | 'createdAt'
+  Ascending?: boolean  // Changed from 'ascending' to 'Ascending' to match backend
 }
 
 export interface UpcomingEventsParams {
   categoryId?: number
   count?: number
-  includePrivate?: boolean
 }
 
 export interface RegisterForEventRequest {
   eventId: number
-  firstName?: string
-  lastName?: string
-  email?: string
-  phone?: string
-  company?: string
-  jobTitle?: string
-  dietaryRestrictions?: string
-  specialRequirements?: string
-  notes?: string
-  emergencyContactName?: string
-  emergencyContactPhone?: string
-  agreeToTerms: boolean
-  subscribeToUpdates?: boolean
-}
-
-export interface UploadImageRequest {
-  eventId: number
-  file: File
-  isPrimary: boolean
-  altText?: string
-}
-
-export interface EventImageDto {
-  id: number
-  url: string
-  isPrimary: boolean
-  altText?: string
-  uploadedAt: string
-}
-
-export interface EventStatisticsDto {
-  totalEvents: number
-  totalRegistrations: number
-  averageCapacity: number
-  mostPopularCategory: string
-  upcomingEvents: number
-  eventsByMonth: Array<{
-    month: string
-    count: number
-  }>
-  registrationTrends: Array<{
-    date: string
-    registrations: number
-  }>
-}
-
-export interface EventAnalyticsDto {
-  views: number
-  registrations: number
-  conversionRate: number
-  viewsByDay: Array<{
-    date: string
-    views: number
-  }>
-  registrationsByDay: Array<{
-    date: string
-    registrations: number
-  }>
-  topReferrers: Array<{
-    source: string
-    views: number
-  }>
-}
-
-export interface EventShareLinksDto {
-  facebook: string
-  twitter: string
-  linkedin: string
-  email: string
-  whatsapp: string
-  copy: string
-}
-
-export interface BulkUpdateRequest {
-  eventIds: number[]
-  updates: Partial<CreateEventRequest>
-}
-
-export interface ExportRequest {
-  format: 'csv' | 'excel'
-  filters?: EventsQueryParams
-}
-
-export interface RegistrationUpdateRequest {
-  registrationId: number
-  status: string
   notes?: string
 }
 
@@ -141,19 +52,24 @@ export interface CancelRegistrationRequest {
   reason?: string
 }
 
-export interface TrackViewRequest {
+export interface UploadImageRequest {
   eventId: number
-  source?: string
+  file: File
+  isPrimary: boolean
 }
 
-// UTILITY TYPES
+export interface MarkAttendanceRequest {
+  registrationId: number
+  attended: boolean
+}
 
-export type EventSortOption = 'title' | 'startDateTime' | 'createdAt' | 'capacity' | 'registrationCount'
+// ===== UTILITY TYPES =====
+
+export type EventSortOption = 'title' | 'startDateTime' | 'createdAt'
 export type EventStatus = 'draft' | 'published' | 'cancelled' | 'completed'
-export type RegistrationStatus = 'active' | 'cancelled' | 'waitlist' | 'checkedIn'
-export type ExportFormat = 'csv' | 'excel'
+export type RegistrationStatus = 'active' | 'cancelled' | 'attended'
 
-// FILTER TYPES 
+// ===== FILTER TYPES =====
 
 export interface EventFilters {
   searchTerm: string
@@ -163,14 +79,10 @@ export interface EventFilters {
   endDate?: string
   location?: string
   hasAvailableSpots: boolean
-  isFeatured: boolean
-  tags: string[]
-  priceRange?: { min: number; max: number }
 }
 
 export interface AdvancedEventFilters extends EventFilters {
   status?: EventStatus
-  createdBy?: number
   capacity?: { min: number; max: number }
   registrationCount?: { min: number; max: number }
 }

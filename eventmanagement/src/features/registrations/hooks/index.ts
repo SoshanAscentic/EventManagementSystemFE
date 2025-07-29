@@ -9,18 +9,39 @@ export const useMyRegistrations = () => {
   })
 
   const { data, isLoading, error } = useGetMyRegistrationsQuery({
+    pageNumber: 1,
+    pageSize: 50, // Get more registrations for filtering
     status: filters.status === 'all' ? undefined : filters.status,
-    upcoming: filters.timeframe === 'upcoming',
-    past: filters.timeframe === 'past',
+    ascending: false, // Most recent first - ADD THIS REQUIRED PARAMETER
   })
 
   const updateFilter = useCallback((key: keyof RegistrationFilters, value: any) => {
     setFilters(prev => ({ ...prev, [key]: value }))
   }, [])
 
+  // Client-side filtering for timeframe since API doesn't support it
+  const filteredRegistrations = useMemo(() => {
+    if (!data?.data?.items) return []
+    
+    let filtered = data.data.items
+    
+    // Filter by timeframe
+    if (filters.timeframe === 'upcoming') {
+      filtered = filtered.filter(reg => 
+        new Date(reg.eventStartDateTime) > new Date() && reg.status === 'Active'
+      )
+    } else if (filters.timeframe === 'past') {
+      filtered = filtered.filter(reg => 
+        new Date(reg.eventStartDateTime) <= new Date()
+      )
+    }
+    
+    return filtered
+  }, [data?.data?.items, filters.timeframe])
+
   return {
-    registrations: data?.data?.items || [],
-    totalCount: data?.data?.totalCount || 0,
+    registrations: filteredRegistrations,
+    totalCount: filteredRegistrations.length,
     isLoading,
     error,
     filters,
@@ -33,7 +54,7 @@ export const useRegistrationActions = () => {
 
   const handleCancel = useCallback(async (registrationId: number, reason?: string) => {
     try {
-      await cancelRegistration({ id: registrationId, reason }).unwrap()
+      await cancelRegistration({ registrationId, reason }).unwrap()
       return { success: true }
     } catch (error: any) {
       return { success: false, error: error.message }

@@ -1,75 +1,68 @@
-import { useErrorBoundary } from 'react-error-boundary'
+import React, { Component, ErrorInfo, ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Icon } from '@/components/atoms'
 
-interface ErrorFallbackProps {
-  error: Error
-  resetErrorBoundary: () => void
+interface Props {
+  children: ReactNode
 }
 
-function ErrorFallback({ error, resetErrorBoundary }: ErrorFallbackProps) {
-  const handleReload = () => {
-    window.location.reload()
-  }
-
-  const handleGoHome = () => {
-    window.location.href = '/'
-  }
-
-  return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <Card className="w-full max-w-2xl">
-        <CardHeader className="text-center">
-          <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
-            <Icon name="AlertTriangle" className="w-8 h-8 text-red-600" />
-          </div>
-          <CardTitle className="text-2xl text-gray-900">
-            Something went wrong
-          </CardTitle>
-        </CardHeader>
-        
-        <CardContent className="space-y-6">
-          <div className="text-center">
-            <p className="text-gray-600 mb-4">
-              We're sorry for the inconvenience. An unexpected error occurred.
-            </p>
-          </div>
-
-          {/* Error Details (only in development) */}
-          {process.env.NODE_ENV === 'development' && (
-            <details className="bg-gray-100 rounded-lg p-4">
-              <summary className="cursor-pointer font-medium text-gray-700 mb-2">
-                Error Details (Development Only)
-              </summary>
-              <pre className="text-sm text-red-600 overflow-auto">
-                {error.message}
-              </pre>
-            </details>
-          )}
-
-          {/* Action Buttons */}
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Button onClick={resetErrorBoundary}>
-              <Icon name="RotateCcw" className="w-4 h-4 mr-2" />
-              Try Again
-            </Button>
-            
-            <Button variant="outline" onClick={handleReload}>
-              <Icon name="RefreshCw" className="w-4 h-4 mr-2" />
-              Reload Page
-            </Button>
-            
-            <Button variant="outline" onClick={handleGoHome}>
-              <Icon name="Home" className="w-4 h-4 mr-2" />
-              Go Home
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  )
+interface State {
+  hasError: boolean
+  error?: Error
 }
 
-export { ErrorBoundary } from 'react-error-boundary'
-export { ErrorFallback }
+export class ErrorBoundary extends Component<Props, State> {
+  public state: State = {
+    hasError: false
+  }
+
+  public static getDerivedStateFromError(error: Error): State {
+    return { hasError: true, error }
+  }
+
+  public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error('Uncaught error:', error, errorInfo)
+  }
+
+  public render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-gray-50 via-red-50/30 to-orange-50/20 flex items-center justify-center p-4">
+          <Card className="max-w-lg mx-auto">
+            <CardContent className="text-center py-12">
+              <Icon name="AlertTriangle" className="h-16 w-16 text-red-500 mx-auto mb-6" />
+              <h1 className="text-2xl font-bold text-gray-900 mb-4">Something went wrong</h1>
+              <p className="text-gray-600 mb-6">
+                An unexpected error occurred. Please try refreshing the page.
+              </p>
+              {process.env.NODE_ENV === 'development' && this.state.error && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 text-left">
+                  <h3 className="font-medium text-red-800 mb-2">Error Details:</h3>
+                  <code className="text-sm text-red-700 break-all">
+                    {this.state.error.message}
+                  </code>
+                </div>
+              )}
+              <div className="flex gap-3 justify-center">
+                <Button 
+                  variant="outline" 
+                  onClick={() => window.location.reload()}
+                >
+                  <Icon name="RotateCcw" className="mr-2 h-4 w-4" />
+                  Refresh Page
+                </Button>
+                <Button onClick={() => window.location.href = '/'}>
+                  <Icon name="Home" className="mr-2 h-4 w-4" />
+                  Go Home
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )
+    }
+
+    return this.props.children
+  }
+}

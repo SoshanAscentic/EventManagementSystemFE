@@ -1,11 +1,27 @@
+import { useEffect } from 'react'
 import { AppRouter } from './router/AppRouter'
 import { AppProviders } from './app/providers/AppProviders'
 import { Toaster } from './shared/components/Toaster'
 import { useSignalR } from './shared/hooks/useSignalR'
+import { useAuth } from './shared/hooks/useAuth'
 import { ErrorBoundary } from './shared/components/ErrorBoundary'
 
 function AppContent() {
+  const { isLoading } = useAuth()
+  
   useSignalR() // Initialize SignalR connection
+
+  // Show loading screen during initial auth check
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+          <p className="text-gray-600">Loading EventHub...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <>
@@ -17,10 +33,12 @@ function AppContent() {
 
 function App() {
   return (
+    <ErrorBoundary>
       <AppProviders>
         <AppContent />
       </AppProviders>
+    </ErrorBoundary>
   )
 }
 
-export default App
+export default App 

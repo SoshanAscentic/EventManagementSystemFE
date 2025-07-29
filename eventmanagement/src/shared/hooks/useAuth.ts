@@ -1,8 +1,10 @@
-import { useMemo, useCallback } from 'react'
+import { useMemo, useCallback, useEffect } from 'react'
 import { useAppSelector, useAppDispatch } from '@/app/hooks'
 import { useGetCurrentUserQuery } from '@/features/auth/api/authApi'
-import { setAuth } from '@/app/slices/authSlice'
+import { setAuth, clearAuth, setLoading, setInitialized } from '@/app/slices/authSlice'
 import type { RootState } from '@/app/store/store'
+import { getTokenFromCookie } from '@/features/auth/api/authApi'
+import { selectUserInfo } from '@/app/slices/authSlice'
 
 interface UserPermissions {
   canViewEvents: boolean
@@ -36,22 +38,32 @@ export const getPermissions = (roles: string[]): UserPermissions => {
 
 export const useAuth = () => {
   const dispatch = useAppDispatch()
-  const { user, isAuthenticated, roles } = useAppSelector((state: RootState) => state.auth)
+  const { user, isAuthenticated, isLoading: authIsLoading, isInitialized } = useAppSelector(selectUserInfo)
   
-  const { data, isLoading, error } = useGetCurrentUserQuery(undefined, {
-    skip: isAuthenticated,
+  // Check if we have tokens in cookies
+  const hasTokens = getTokenFromCookie('accessToken') !== null
+  
+  // Only call getCurrentUser if we have tokens and haven't initialized yet
+  const { data, error, isLoading: queryLoading } = useGetCurrentUserQuery(undefined, {
+    skip: !hasTokens || isInitialized
   })
 
-  // Update auth state when query succeeds
-  useMemo(() => {
-    if (data?.success && data.data.user && !isAuthenticated) {
-      dispatch(setAuth({
-        user: data.data.user,
-        roles: data.data.roles,
-      }))
+  useEffect(() => {
+    // If no tokens exist, mark as initialized immediately
+    if (!hasTokens && !isInitialized) {
+      dispatch(setInitialized(true))
     }
-  }, [data, dispatch, isAuthenticated])
+  }, [hasTokens, isInitialized, dispatch])
 
+  // Handle query completion
+  useEffect(() => {
+    if (hasTokens && (data || error)) {
+      dispatch(setInitialized(true))
+    }
+  }, [data, error, hasTokens, dispatch])
+
+  // Get roles from user object
+  const roles = user?.roles || []
   const permissions = useMemo(() => getPermissions(roles), [roles])
 
   const hasRole = useCallback((role: string) => roles.includes(role), [roles])
@@ -72,8 +84,8 @@ export const useAuth = () => {
     hasAnyRole,
     hasPermission,
     isAuthenticated: !!user,
-    isLoading,
-    error,
+    isLoading: authIsLoading || queryLoading,
+    isInitialized,
     isAdmin: hasRole('Admin'),
     isUser: hasRole('User'),
   }

@@ -42,6 +42,7 @@ export interface CategoryDto {
   parentId?: number
   level?: number
 }
+
 export interface UserDto {
   id: number
   firstName: string

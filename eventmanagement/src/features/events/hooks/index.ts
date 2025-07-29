@@ -3,18 +3,17 @@ import {
   useGetEventsQuery,
   useGetEventByIdQuery,
   useCreateEventMutation,
-  useRegisterForEventMutation,
   eventsApi,
-  useGetEventAnalyticsQuery,
 } from '../api/eventsApi'
+import { useRegisterForEventMutation } from '@/features/registrations/api/registrationsApi'
 import { useAppDispatch } from '@/app/hooks'
 import { useAuth } from '@/shared/hooks/useAuth'
 import { useDebounce } from '@/shared/hooks/useDebounce'
 import type { 
   EventsQueryParams, 
-  CreateEventRequest, 
-  RegisterForEventRequest 
+  CreateEventRequest,
 } from '../types'
+import type { RegisterForEventRequest } from '@/features/registrations/api/registrationsApi'
 
 // ===== OPTIMIZED QUERIES =====
 
@@ -255,7 +254,7 @@ export const useCacheManagement = () => {
 // ===== UTILITY HOOKS =====
 
 /**
- * Hook for event validation and formatting
+ * Hook for event validation and formatting - Updated to match backend
  */
 export const useEventValidation = () => {
   const formatEventForApi = useCallback((eventData: any): CreateEventRequest => {
@@ -266,14 +265,12 @@ export const useEventValidation = () => {
       endDateTime: eventData.endDateTime,
       venue: eventData.venue?.trim(),
       address: eventData.address?.trim(),
-      city: eventData.city?.trim(),
-      country: eventData.country?.trim(),
+      city: eventData.city?.trim() || undefined,
+      country: eventData.country?.trim() || undefined,
       capacity: Number(eventData.capacity),
       eventType: eventData.eventType,
       categoryId: Number(eventData.categoryId),
-      isPrivate: Boolean(eventData.isPrivate),
-      requiresApproval: Boolean(eventData.requiresApproval),
-      tags: Array.isArray(eventData.tags) ? eventData.tags.filter(Boolean) : [],
+      // Removed: isPrivate, requiresApproval, tags (not supported by backend)
     }
   }, [])
   
@@ -293,43 +290,63 @@ export const useEventValidation = () => {
     return null
   }, [])
   
+  const validateEventData = useCallback((eventData: any) => {
+    const errors: string[] = []
+    
+    if (!eventData.title?.trim()) {
+      errors.push('Title is required')
+    } else if (eventData.title.length > 200) {
+      errors.push('Title must be less than 200 characters')
+    }
+    
+    if (!eventData.description?.trim()) {
+      errors.push('Description is required')
+    } else if (eventData.description.length > 2000) {
+      errors.push('Description must be less than 2000 characters')
+    }
+    
+    if (!eventData.venue?.trim()) {
+      errors.push('Venue is required')
+    } else if (eventData.venue.length > 100) {
+      errors.push('Venue must be less than 100 characters')
+    }
+    
+    if (!eventData.address?.trim()) {
+      errors.push('Address is required')
+    } else if (eventData.address.length > 200) {
+      errors.push('Address must be less than 200 characters')
+    }
+    
+    if (!eventData.capacity || eventData.capacity <= 0) {
+      errors.push('Capacity must be greater than 0')
+    } else if (eventData.capacity > 10000) {
+      errors.push('Capacity cannot exceed 10,000')
+    }
+    
+    if (!eventData.eventType) {
+      errors.push('Event type is required')
+    }
+    
+    if (!eventData.categoryId || eventData.categoryId <= 0) {
+      errors.push('Category is required')
+    }
+    
+    // Date validation
+    const dateError = validateEventDates(eventData.startDateTime, eventData.endDateTime)
+    if (dateError) {
+      errors.push(dateError)
+    }
+    
+    return {
+      isValid: errors.length === 0,
+      errors,
+    }
+  }, [validateEventDates])
+  
   return {
     formatEventForApi,
     validateEventDates,
-  }
-}
-
-/**
- * Hook for event statistics and analytics
- */
-export const useEventAnalytics = (eventId?: number) => {
-  const { data: analytics, isLoading } = useGetEventAnalyticsQuery(
-    { eventId: eventId!, period: '30d' },
-    { skip: !eventId }
-  )
-  
-  const conversionRate = useMemo(() => {
-    if (!analytics?.data) return 0
-    const { views, registrations } = analytics.data
-    return views > 0 ? (registrations / views) * 100 : 0
-  }, [analytics])
-  
-  const growthRate = useMemo(() => {
-    if (!analytics?.data?.viewsByDay) return 0
-    const viewsByDay = analytics.data.viewsByDay
-    if (viewsByDay.length < 2) return 0
-    
-    const recent = viewsByDay.slice(-7).reduce((sum, day) => sum + day.views, 0)
-    const previous = viewsByDay.slice(-14, -7).reduce((sum, day) => sum + day.views, 0)
-    
-    return previous > 0 ? ((recent - previous) / previous) * 100 : 0
-  }, [analytics])
-  
-  return {
-    analytics: analytics?.data,
-    isLoading,
-    conversionRate,
-    growthRate,
+    validateEventData,
   }
 }
 
@@ -340,6 +357,9 @@ export {
   useGetEventsQuery,
   useGetEventByIdQuery,
   useCreateEventMutation,
-  useRegisterForEventMutation,
-  // ... other API hooks
 } from '../api/eventsApi'
+
+export {
+  // Registration hooks from registrations API
+  useRegisterForEventMutation,
+} from '@/features/registrations/api/registrationsApi'

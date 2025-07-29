@@ -2,6 +2,7 @@ import { Outlet, Navigate } from 'react-router-dom'
 import { Link } from 'react-router-dom'
 import { Icon } from '@/components/atoms'
 import { useAuth } from '@/shared/hooks/useAuth'
+import { Spinner } from '@/components/atoms'
 
 export const AuthLayout = () => {
   const { isAuthenticated, isLoading } = useAuth()
@@ -9,7 +10,10 @@ export const AuthLayout = () => {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <div className="text-center">
+          <Spinner size="large" className="mb-4" />
+          <p className="text-gray-600">Loading...</p>
+        </div>
       </div>
     )
   }

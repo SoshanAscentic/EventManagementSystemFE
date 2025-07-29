@@ -2,7 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { RootLayout } from '@/layouts/RootLayout'
 import { AuthLayout } from '@/layouts/AuthLayout'
 import { DashboardLayout } from '@/layouts/DashboardLayout'
-import { ProtectedRoute } from './ProtectedRoute'
+import ProtectedRoute from './ProtectedRoute'
 
 // Pages
 import { HomePage } from '@/pages/HomePage'
@@ -18,6 +18,7 @@ import { EventManagementPage } from '@/pages/EventManagementPage'
 import { CreateEventPage } from '@/pages/CreateEventPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { UnauthorizedPage } from '@/pages/UnauthorizedPage'
+import { CategoriesPage } from '@/pages/CategoriesPage'
 
 export const AppRouter = () => {
   return (
@@ -28,6 +29,7 @@ export const AppRouter = () => {
           <Route index element={<HomePage />} />
           <Route path="events" element={<EventsPage />} />
           <Route path="events/:id" element={<EventDetailPage />} />
+          <Route path="categories" element={<CategoriesPage />} />
         </Route>
 
         {/* Auth Routes */}

@@ -1,14 +1,18 @@
-// src/shared/components/Toaster/Toaster.tsx
 import { useEffect } from 'react'
 import { useAppSelector, useAppDispatch } from '@/app/hooks'
 import { removeNotification } from '@/features/notifications/notificationSlice'
 import { Icon } from '@/components/atoms'
 import { cn } from '@/lib/utils'
+import { createSelector } from '@reduxjs/toolkit'
+
+// Memoized selector to prevent unnecessary rerenders
+const selectToastNotifications = createSelector(
+  [(state: any) => state.notifications.notifications],
+  (notifications) => notifications.filter((n: any) => n.type !== 'info').slice(0, 5)
+)
 
 export const Toaster = () => {
-  const notifications = useAppSelector(state => 
-    state.notifications.notifications.filter(n => n.type !== 'info')
-  )
+  const notifications = useAppSelector(selectToastNotifications)
   const dispatch = useAppDispatch()
 
   const removeToast = (id: string) => {
@@ -17,7 +21,7 @@ export const Toaster = () => {
 
   return (
     <div className="fixed top-4 right-4 z-50 space-y-2">
-      {notifications.slice(0, 5).map(notification => (
+      {notifications.map(notification => (
         <Toast
           key={notification.id}
           notification={notification}

@@ -4,19 +4,13 @@ import { ApiResponse, PagedResponse } from '@/shared/types/api'
 import {
   CreateEventRequest,
   UpdateEventRequest,
+  UpdateCapacityRequest,
   EventsQueryParams,
   UpcomingEventsParams,
   RegisterForEventRequest,
-  UploadImageRequest,
-  EventImageDto,
-  EventStatisticsDto,
-  EventAnalyticsDto,
-  EventShareLinksDto,
-  BulkUpdateRequest,
-  ExportRequest,
-  RegistrationUpdateRequest,
   CancelRegistrationRequest,
-  TrackViewRequest,
+  UploadImageRequest,
+  MarkAttendanceRequest,
 } from '../types'
 
 // ===== UTILITY FUNCTIONS =====
@@ -42,10 +36,18 @@ export const eventsApi = baseApi.injectEndpoints({
     // ===== READ OPERATIONS =====
     
     getEvents: builder.query<PagedResponse<EventDto>, EventsQueryParams>({
-      query: (params) => ({
-        url: '/events',
-        params: cleanParams(params),
-      }),
+      query: (params) => {
+        const cleanedParams = cleanParams(params)
+        // Ensure Ascending parameter is always present with a default value
+        if (cleanedParams.Ascending === undefined) {
+          cleanedParams.Ascending = true // Default to ascending order
+        }
+        
+        return {
+          url: '/events',
+          params: cleanedParams,
+        }
+      },
       providesTags: (result) =>
         result?.success
           ? [
@@ -68,39 +70,6 @@ export const eventsApi = baseApi.injectEndpoints({
       providesTags: [{ type: 'Event', id: 'UPCOMING' }],
     }),
 
-    getFeaturedEvents: builder.query<ApiResponse<EventDto[]>, void>({
-      query: () => '/events/featured',
-      providesTags: [{ type: 'Event', id: 'FEATURED' }],
-    }),
-
-    searchEvents: builder.query<PagedResponse<EventDto>, EventsQueryParams>({
-      query: (params) => ({
-        url: '/events/search',
-        params: cleanParams(params),
-      }),
-      providesTags: [{ type: 'Event', id: 'SEARCH' }],
-    }),
-
-    getEventsByCategory: builder.query<PagedResponse<EventDto>, { categoryId: number; pageNumber?: number; pageSize?: number }>({
-      query: ({ categoryId, ...params }) => ({
-        url: `/events/category/${categoryId}`,
-        params: cleanParams(params),
-      }),
-      providesTags: (result, error, { categoryId }) => [
-        { type: 'Event', id: `CATEGORY_${categoryId}` }
-      ],
-    }),
-
-    getRelatedEvents: builder.query<ApiResponse<EventDto[]>, { eventId: number; limit?: number }>({
-      query: ({ eventId, limit = 3 }) => ({
-        url: `/events/${eventId}/related`,
-        params: { limit },
-      }),
-      providesTags: (result, error, { eventId }) => [
-        { type: 'Event', id: `RELATED_${eventId}` }
-      ],
-    }),
-
     // ===== CREATE/UPDATE/DELETE OPERATIONS =====
 
     createEvent: builder.mutation<ApiResponse<EventDto>, CreateEventRequest>({
@@ -112,7 +81,6 @@ export const eventsApi = baseApi.injectEndpoints({
       invalidatesTags: [
         { type: 'Event', id: 'LIST' },
         { type: 'Event', id: 'UPCOMING' },
-        { type: 'Event', id: 'FEATURED' },
       ],
     }),
 
@@ -126,7 +94,18 @@ export const eventsApi = baseApi.injectEndpoints({
         { type: 'Event', id },
         { type: 'Event', id: 'LIST' },
         { type: 'Event', id: 'UPCOMING' },
-        { type: 'Event', id: 'FEATURED' },
+      ],
+    }),
+
+    updateEventCapacity: builder.mutation<ApiResponse<void>, UpdateCapacityRequest>({
+      query: ({ id, newCapacity }) => ({
+        url: `/events/${id}/capacity`,
+        method: 'PUT',
+        body: { newCapacity },
+      }),
+      invalidatesTags: (result, error, { id }) => [
+        { type: 'Event', id },
+        { type: 'Event', id: 'LIST' },
       ],
     }),
 
@@ -139,33 +118,33 @@ export const eventsApi = baseApi.injectEndpoints({
         { type: 'Event', id },
         { type: 'Event', id: 'LIST' },
         { type: 'Event', id: 'UPCOMING' },
-        { type: 'Event', id: 'FEATURED' },
       ],
-    }),
-
-    duplicateEvent: builder.mutation<ApiResponse<EventDto>, number>({
-      query: (id) => ({
-        url: `/events/${id}/duplicate`,
-        method: 'POST',
-      }),
-      invalidatesTags: [{ type: 'Event', id: 'LIST' }],
     }),
 
     // ===== IMAGE MANAGEMENT =====
 
-    uploadEventImage: builder.mutation<ApiResponse<EventImageDto>, UploadImageRequest>({
-      query: ({ eventId, file, isPrimary, altText }) => {
+    uploadEventImage: builder.mutation<ApiResponse<any>, UploadImageRequest>({
+      query: ({ eventId, file, isPrimary }) => {
         const formData = new FormData()
         formData.append('file', file)
-        formData.append('isPrimary', isPrimary.toString())
-        if (altText) formData.append('altText', altText)
         
         return {
-          url: `/events/${eventId}/images`,
+          url: `/events/${eventId}/images?isPrimary=${isPrimary}`,
           method: 'POST',
           body: formData,
         }
       },
+      invalidatesTags: (result, error, { eventId }) => [
+        { type: 'Event', id: eventId },
+        { type: 'Event', id: 'LIST' },
+      ],
+    }),
+
+    setImageAsPrimary: builder.mutation<ApiResponse<void>, { eventId: number; imageId: number }>({
+      query: ({ eventId, imageId }) => ({
+        url: `/events/${eventId}/images/${imageId}/primary`,
+        method: 'PUT',
+      }),
       invalidatesTags: (result, error, { eventId }) => [
         { type: 'Event', id: eventId },
         { type: 'Event', id: 'LIST' },
@@ -183,133 +162,7 @@ export const eventsApi = baseApi.injectEndpoints({
       ],
     }),
 
-    updateEventImage: builder.mutation<ApiResponse<void>, { eventId: number; imageId: number; altText?: string; isPrimary?: boolean }>({
-      query: ({ eventId, imageId, ...data }) => ({
-        url: `/events/${eventId}/images/${imageId}`,
-        method: 'PUT',
-        body: data,
-      }),
-      invalidatesTags: (result, error, { eventId }) => [
-        { type: 'Event', id: eventId },
-        { type: 'Event', id: 'LIST' },
-      ],
-    }),
-
-    // ===== REGISTRATION OPERATIONS =====
-
-    registerForEvent: builder.mutation<ApiResponse<number>, RegisterForEventRequest>({
-      query: (data) => ({
-        url: '/registrations',
-        method: 'POST',
-        body: data,
-      }),
-      invalidatesTags: (result, error, { eventId }) => [
-        { type: 'Registration', id: 'LIST' },
-        { type: 'Event', id: eventId },
-        { type: 'Event', id: 'LIST' },
-      ],
-    }),
-
-    cancelEventRegistration: builder.mutation<ApiResponse<void>, CancelRegistrationRequest>({
-      query: ({ registrationId, reason }) => ({
-        url: `/registrations/${registrationId}`,
-        method: 'DELETE',
-        body: { reason },
-      }),
-      invalidatesTags: [
-        { type: 'Registration', id: 'LIST' },
-        { type: 'Event', id: 'LIST' },
-      ],
-    }),
-
-    getEventRegistrations: builder.query<PagedResponse<any>, { eventId: number; pageNumber?: number; pageSize?: number }>({
-      query: ({ eventId, ...params }) => ({
-        url: `/registrations/event/${eventId}`,
-        params: cleanParams(params),
-      }),
-      providesTags: (result, error, { eventId }) => [
-        { type: 'Registration', id: `EVENT_${eventId}` }
-      ],
-    }),
-
-    updateRegistrationStatus: builder.mutation<ApiResponse<void>, RegistrationUpdateRequest>({
-      query: ({ registrationId, status, notes }) => ({
-        url: `/registrations/${registrationId}/status`,
-        method: 'PUT',
-        body: { status, notes },
-      }),
-      invalidatesTags: [
-        { type: 'Registration', id: 'LIST' },
-        { type: 'Event', id: 'LIST' },
-      ],
-    }),
-
-    // ===== ADMIN OPERATIONS =====
-
-    getEventStatistics: builder.query<ApiResponse<EventStatisticsDto>, { fromDate?: string; toDate?: string }>({
-      query: (params) => ({
-        url: '/admin/events/statistics',
-        params: cleanParams(params),
-      }),
-      providesTags: [{ type: 'Statistics', id: 'EVENTS' }],
-    }),
-
-    getCapacityAlerts: builder.query<ApiResponse<EventDto[]>, { threshold?: number }>({
-      query: (params) => ({
-        url: '/admin/events/capacity-alerts',
-        params: cleanParams(params),
-      }),
-      providesTags: [{ type: 'Event', id: 'CAPACITY_ALERTS' }],
-    }),
-
-    bulkUpdateEvents: builder.mutation<ApiResponse<void>, BulkUpdateRequest>({
-      query: (data) => ({
-        url: '/admin/events/bulk-update',
-        method: 'PUT',
-        body: data,
-      }),
-      invalidatesTags: [
-        { type: 'Event', id: 'LIST' },
-        { type: 'Event', id: 'UPCOMING' },
-      ],
-    }),
-
-    exportEvents: builder.mutation<Blob, ExportRequest>({
-      query: ({ format, filters }) => ({
-        url: `/admin/events/export`,
-        method: 'POST',
-        body: { format, filters: cleanParams(filters || {}) },
-        responseHandler: (response) => response.blob(),
-      }),
-    }),
-
-    // ===== EVENT PUBLISHING =====
-
-    publishEvent: builder.mutation<ApiResponse<void>, number>({
-      query: (id) => ({
-        url: `/events/${id}/publish`,
-        method: 'POST',
-      }),
-      invalidatesTags: (result, error, id) => [
-        { type: 'Event', id },
-        { type: 'Event', id: 'LIST' },
-        { type: 'Event', id: 'UPCOMING' },
-      ],
-    }),
-
-    unpublishEvent: builder.mutation<ApiResponse<void>, number>({
-      query: (id) => ({
-        url: `/events/${id}/unpublish`,
-        method: 'POST',
-      }),
-      invalidatesTags: (result, error, id) => [
-        { type: 'Event', id },
-        { type: 'Event', id: 'LIST' },
-        { type: 'Event', id: 'UPCOMING' },
-      ],
-    }),
-
-    // ===== EVENT CATEGORIES =====
+    // ===== CATEGORIES =====
 
     getCategories: builder.query<ApiResponse<CategoryDto[]>, { activeOnly?: boolean }>({
       query: (params) => ({
@@ -318,84 +171,28 @@ export const eventsApi = baseApi.injectEndpoints({
       }),
       providesTags: [{ type: 'Category', id: 'LIST' }],
     }),
-
-    // ===== EVENT ANALYTICS =====
-
-    getEventAnalytics: builder.query<ApiResponse<EventAnalyticsDto>, { eventId: number; period?: string }>({
-      query: ({ eventId, period = '30d' }) => ({
-        url: `/events/${eventId}/analytics`,
-        params: { period },
-      }),
-      providesTags: (result, error, { eventId }) => [
-        { type: 'Analytics', id: `EVENT_${eventId}` }
-      ],
-    }),
-
-    // ===== EVENT SHARING =====
-
-    getEventShareLinks: builder.query<ApiResponse<EventShareLinksDto>, number>({
-      query: (eventId) => `/events/${eventId}/share-links`,
-      providesTags: (result, error, eventId) => [
-        { type: 'Event', id: `SHARE_${eventId}` }
-      ],
-    }),
-
-    trackEventView: builder.mutation<ApiResponse<void>, TrackViewRequest>({
-      query: ({ eventId, source }) => ({
-        url: `/events/${eventId}/track-view`,
-        method: 'POST',
-        body: { source },
-      }),
-    }),
   }),
 })
 
-// ===== EXPORTED HOOKS (Basic) =====
+// ===== EXPORTED HOOKS =====
 
 export const {
   // Read operations
   useGetEventsQuery,
   useGetEventByIdQuery,
   useGetUpcomingEventsQuery,
-  useGetFeaturedEventsQuery,
-  useSearchEventsQuery,
-  useGetEventsByCategoryQuery,
-  useGetRelatedEventsQuery,
   
   // Create/Update/Delete operations
   useCreateEventMutation,
   useUpdateEventMutation,
+  useUpdateEventCapacityMutation,
   useDeleteEventMutation,
-  useDuplicateEventMutation,
   
   // Image management
   useUploadEventImageMutation,
+  useSetImageAsPrimaryMutation,
   useDeleteEventImageMutation,
-  useUpdateEventImageMutation,
-  
-  // Registration operations
-  useRegisterForEventMutation,
-  useCancelEventRegistrationMutation,
-  useGetEventRegistrationsQuery,
-  useUpdateRegistrationStatusMutation,
-  
-  // Admin operations
-  useGetEventStatisticsQuery,
-  useGetCapacityAlertsQuery,
-  useBulkUpdateEventsMutation,
-  useExportEventsMutation,
-  
-  // Publishing
-  usePublishEventMutation,
-  useUnpublishEventMutation,
   
   // Categories
   useGetCategoriesQuery,
-  
-  // Analytics
-  useGetEventAnalyticsQuery,
-  
-  // Sharing
-  useGetEventShareLinksQuery,
-  useTrackEventViewMutation,
 } = eventsApi

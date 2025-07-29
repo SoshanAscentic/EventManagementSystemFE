@@ -1,102 +1,161 @@
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Avatar, AvatarFallback, AvatarImage, Badge, Icon } from '@/components/atoms'
+import { Avatar, AvatarFallback, AvatarImage, Badge, Icon, Spinner } from '@/components/atoms'
 import { EventCard } from '@/components/organisms'
-import { EventDto } from '@/shared/types/domain'
+import { useGetEventByIdQuery, useGetUpcomingEventsQuery } from '@/features/events/api/eventsApi'
+import { useRegisterForEventMutation } from '@/features/registrations/api/registrationsApi'
+import { useAuth } from '@/shared/hooks/useAuth'
+import { formatEventDateTime, formatRelativeTime } from '@/shared/utils/formatters'
+import { useState } from 'react'
 
-const mockEvent = {
-  id: 1,
-  title: 'React Conference 2024',
-  description: 'Join us for the biggest React conference of the year featuring industry experts, workshops, and networking opportunities. Learn about the latest React features, best practices, and future roadmap from the core team and community leaders.',
-  startDateTime: '2024-10-15T09:00:00',
-  endDateTime: '2024-10-15T17:00:00',
-  venue: 'Tech Conference Center',
-  address: '123 Tech Street, San Francisco, CA 94105',
-  category: 'Technology',
-  eventType: 'Conference',
-  capacity: 500,
-  currentRegistrations: 450,
-  remainingCapacity: 50,
-  primaryImageUrl: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&h=400&fit=crop',
-  isRegistrationOpen: true,
-  isUserRegistered: false,
-  organizer: {
-    name: 'Tech Events Inc.',
-    avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face',
-    email: 'contact@techevents.com'
-  },
-  agenda: [
-    { time: '09:00', title: 'Registration & Coffee', speaker: 'Event Staff' },
-    { time: '09:30', title: 'Opening Keynote: Future of React', speaker: 'Dan Abramov' },
-    { time: '10:30', title: 'React Server Components Deep Dive', speaker: 'Sebastian Markbåge' },
-    { time: '11:30', title: 'Coffee Break', speaker: '' },
-    { time: '12:00', title: 'Building Accessible React Apps', speaker: 'Marcy Sutton' },
-    { time: '13:00', title: 'Lunch', speaker: '' },
-    { time: '14:00', title: 'State Management in 2024', speaker: 'Mark Erikson' },
-    { time: '15:00', title: 'React Performance Optimization', speaker: 'Brian Vaughn' },
-    { time: '16:00', title: 'Panel Discussion & Q&A', speaker: 'All Speakers' },
-    { time: '17:00', title: 'Networking Reception', speaker: '' },
-  ]
+// Mock agenda data (this would typically come from the backend)
+const getMockAgenda = (startDateTime: string, endDateTime: string) => {
+  const start = new Date(startDateTime)
+  const end = new Date(endDateTime)
+  
+  // Generate a realistic agenda based on event duration
+  const duration = (end.getTime() - start.getTime()) / (1000 * 60 * 60) // hours
+  
+  if (duration <= 4) {
+    // Short event (half day or less)
+    return [
+      { time: start.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }), title: 'Registration & Welcome', speaker: 'Event Staff' },
+      { time: new Date(start.getTime() + 30 * 60000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }), title: 'Opening Session', speaker: 'Keynote Speaker' },
+      { time: new Date(start.getTime() + 2 * 60 * 60000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }), title: 'Main Presentation', speaker: 'Featured Speaker' },
+      { time: new Date(start.getTime() + 3 * 60 * 60000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }), title: 'Q&A Session', speaker: 'All Speakers' },
+      { time: end.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }), title: 'Closing & Networking', speaker: '' },
+    ]
+  } else {
+    // Full day event
+    return [
+      { time: start.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }), title: 'Registration & Coffee', speaker: 'Event Staff' },
+      { time: new Date(start.getTime() + 30 * 60000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }), title: 'Opening Keynote', speaker: 'Keynote Speaker' },
+      { time: new Date(start.getTime() + 2 * 60 * 60000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }), title: 'Workshop Session 1', speaker: 'Expert Panel' },
+      { time: new Date(start.getTime() + 3 * 60 * 60000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }), title: 'Coffee Break', speaker: '' },
+      { time: new Date(start.getTime() + 3.5 * 60 * 60000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }), title: 'Workshop Session 2', speaker: 'Industry Leaders' },
+      { time: new Date(start.getTime() + 5 * 60 * 60000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }), title: 'Lunch Break', speaker: '' },
+      { time: new Date(start.getTime() + 6 * 60 * 60000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }), title: 'Afternoon Sessions', speaker: 'Various Speakers' },
+      { time: new Date(start.getTime() + 7.5 * 60 * 60000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }), title: 'Panel Discussion', speaker: 'All Speakers' },
+      { time: end.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }), title: 'Networking Reception', speaker: '' },
+    ]
+  }
 }
-
-// Related events using EventDto format for EventCard organism
-const relatedEvents: EventDto[] = [
-  {
-    id: 2,
-    title: 'Tech Workshop Advanced',
-    description: 'Advanced workshop for React developers',
-    startDateTime: '2024-11-16T10:00:00',
-    endDateTime: '2024-11-16T16:00:00',
-    venue: 'Tech Center',
-    address: '456 Tech Ave, San Francisco, CA',
-    city: 'San Francisco',
-    country: 'USA',
-    eventType: 'Workshop',
-    capacity: 100,
-    categoryId: 1,
-    categoryName: 'Technology',
-    currentRegistrations: 75,
-    remainingCapacity: 25,
-    isRegistrationOpen: true,
-    primaryImageUrl: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=60&h=60&fit=crop',
-    images: [],
-    createdAt: '2024-09-01T10:00:00',
-    updatedAt: '2024-09-01T10:00:00',
-    isUserRegistered: false,
-  },
-  {
-    id: 3,
-    title: 'JavaScript Masterclass',
-    description: 'Deep dive into modern JavaScript',
-    startDateTime: '2024-11-17T09:00:00',
-    endDateTime: '2024-11-17T17:00:00',
-    venue: 'Dev Hub',
-    address: '789 Dev Street, San Francisco, CA',
-    city: 'San Francisco',
-    country: 'USA',
-    eventType: 'Workshop',
-    capacity: 80,
-    categoryId: 1,
-    categoryName: 'Technology',
-    currentRegistrations: 60,
-    remainingCapacity: 20,
-    isRegistrationOpen: true,
-    primaryImageUrl: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=60&h=60&fit=crop',
-    images: [],
-    createdAt: '2024-09-01T10:00:00',
-    updatedAt: '2024-09-01T10:00:00',
-    isUserRegistered: false,
-  },
-]
 
 export const EventDetailPage = () => {
   const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
+  const { isAuthenticated, user } = useAuth()
+  const [isRegistering, setIsRegistering] = useState(false)
 
-  const handleRegister = (eventId: number) => {
-    console.log('Register for related event:', eventId)
-    // This will be implemented with the registration API in Phase 2
+  const eventId = id ? parseInt(id) : 0
+
+  // Fetch the specific event
+  const { 
+    data: eventData, 
+    isLoading: eventLoading, 
+    error: eventError,
+    refetch: refetchEvent
+  } = useGetEventByIdQuery(eventId, {
+    skip: !eventId,
+  })
+
+  // Fetch related events (from same category)
+  const { 
+    data: relatedEventsData, 
+    isLoading: relatedLoading 
+  } = useGetUpcomingEventsQuery({
+    categoryId: eventData?.data?.categoryId,
+    count: 3
+  }, {
+    skip: !eventData?.data?.categoryId,
+  })
+
+  // Registration mutation
+  const [registerForEvent] = useRegisterForEventMutation()
+
+  const event = eventData?.data
+  const relatedEvents = relatedEventsData?.data?.filter(e => e.id !== eventId) || []
+
+  // Generate mock agenda based on event times
+  const agenda = event ? getMockAgenda(event.startDateTime, event.endDateTime) : []
+
+  const handleRegister = async () => {
+    if (!isAuthenticated) {
+      navigate('/auth/login', { 
+        state: { from: { pathname: `/events/${eventId}` } }
+      })
+      return
+    }
+
+    if (!event || event.remainingCapacity === 0) return
+
+    setIsRegistering(true)
+    try {
+      await registerForEvent({
+        eventId: event.id,
+        notes: undefined
+      }).unwrap()
+      
+      // Refetch event data to update registration status
+      refetchEvent()
+      
+      // Show success message or redirect
+      navigate(`/events/${eventId}`, { 
+        state: { message: 'Registration successful!' }
+      })
+    } catch (error: any) {
+      console.error('Registration failed:', error)
+      // Handle error (you could show a toast notification here)
+    } finally {
+      setIsRegistering(false)
+    }
+  }
+
+  const handleRelatedEventRegister = (relatedEventId: number) => {
+    navigate(`/events/${relatedEventId}/register`)
+  }
+
+  // Loading state
+  if (eventLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-indigo-50/20 flex items-center justify-center">
+        <div className="text-center">
+          <Spinner size="large" className="mb-4" />
+          <p className="text-gray-600">Loading event details...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Error state
+  if (eventError || !event) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-red-50/30 to-orange-50/20">
+        <div className="container mx-auto px-4 py-20">
+          <div className="text-center max-w-md mx-auto">
+            <Icon name="AlertCircle" className="h-16 w-16 text-red-500 mx-auto mb-4" />
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Event Not Found</h1>
+            <p className="text-gray-600 mb-6">
+              The event you're looking for doesn't exist or may have been removed.
+            </p>
+            <div className="flex gap-3 justify-center">
+              <Button onClick={() => refetchEvent()}>
+                <Icon name="RotateCcw" className="mr-2 h-4 w-4" />
+                Try Again
+              </Button>
+              <Button variant="outline" asChild>
+                <Link to="/events">
+                  <Icon name="ArrowLeft" className="mr-2 h-4 w-4" />
+                  Browse Events
+                </Link>
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -115,7 +174,7 @@ export const EventDetailPage = () => {
           <Icon name="ChevronRight" className="h-4 w-4" />
           <Link to="/events" className="hover:text-blue-600 transition-colors font-medium">Events</Link>
           <Icon name="ChevronRight" className="h-4 w-4" />
-          <span className="text-gray-900 font-semibold">{mockEvent.title}</span>
+          <span className="text-gray-900 font-semibold">{event.title}</span>
         </nav>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -125,28 +184,28 @@ export const EventDetailPage = () => {
             <div className="relative animate-fade-in" style={{animationDelay: '0.1s'}}>
               <div className="relative overflow-hidden rounded-2xl shadow-2xl">
                 <img
-                  src={mockEvent.primaryImageUrl}
-                  alt={mockEvent.title}
+                  src={event.primaryImageUrl || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&h=400&fit=crop'}
+                  alt={event.title}
                   className="w-full h-64 md:h-80 object-cover"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
                 <div className="absolute top-6 left-6 flex gap-3">
                   <Badge className="bg-white/90 text-gray-900 backdrop-blur-sm shadow-lg border border-white/20">
-                    {mockEvent.category}
+                    {event.categoryName}
                   </Badge>
                   <Badge variant="outline" className="bg-white/90 backdrop-blur-sm border-white/30 text-gray-700 shadow-lg">
-                    {mockEvent.eventType}
+                    {event.eventType}
                   </Badge>
                 </div>
                 <div className="absolute bottom-6 left-6 right-6">
                   <h1 className="text-3xl md:text-4xl font-bold text-white mb-3 drop-shadow-lg">
-                    {mockEvent.title}
+                    {event.title}
                   </h1>
                   <div className="flex flex-wrap items-center gap-4 text-white/90">
                     <div className="flex items-center">
                       <Icon name="Calendar" className="mr-2 h-4 w-4" />
                       <span className="text-sm font-medium">
-                        {new Date(mockEvent.startDateTime).toLocaleDateString('en-US', {
+                        {new Date(event.startDateTime).toLocaleDateString('en-US', {
                           weekday: 'long',
                           year: 'numeric',
                           month: 'long',
@@ -156,7 +215,7 @@ export const EventDetailPage = () => {
                     </div>
                     <div className="flex items-center">
                       <Icon name="MapPin" className="mr-2 h-4 w-4" />
-                      <span className="text-sm font-medium">{mockEvent.venue}</span>
+                      <span className="text-sm font-medium">{event.venue}</span>
                     </div>
                   </div>
                 </div>
@@ -168,7 +227,7 @@ export const EventDetailPage = () => {
               <Card className="bg-white/80 backdrop-blur-sm shadow-lg border border-white/20 hover:shadow-xl transition-all duration-300">
                 <CardContent className="p-8">
                   <h2 className="text-2xl font-bold text-gray-900 mb-4">About This Event</h2>
-                  <p className="text-gray-600 leading-relaxed text-lg">{mockEvent.description}</p>
+                  <p className="text-gray-600 leading-relaxed text-lg">{event.description}</p>
                 </CardContent>
               </Card>
             </div>
@@ -202,20 +261,23 @@ export const EventDetailPage = () => {
                     <CardHeader>
                       <CardTitle className="flex items-center text-xl">
                         <Icon name="Info" className="mr-3 h-5 w-5 text-blue-600" />
-                        About This Event
+                        Event Information
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-6">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-4">
                           <div className="flex items-start space-x-4">
+                            <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-blue-100 to-blue-200 rounded-xl flex items-center justify-center">
+                              <Icon name="Users" className="h-6 w-6 text-blue-600" />
+                            </div>
                             <div>
-                              <p className="font-semibold text-gray-900 mb-1">Attendees</p>
+                              <p className="font-semibold text-gray-900 mb-1">Capacity & Registration</p>
                               <p className="text-gray-600">
-                                {mockEvent.currentRegistrations} registered
+                                {event.currentRegistrations} of {event.capacity} registered
                               </p>
                               <p className="text-gray-600">
-                                {mockEvent.remainingCapacity} spots remaining
+                                {event.remainingCapacity} spots remaining
                               </p>
                             </div>
                           </div>
@@ -225,32 +287,64 @@ export const EventDetailPage = () => {
                               <Icon name="Tag" className="h-6 w-6 text-purple-600" />
                             </div>
                             <div>
-                              <p className="font-semibold text-gray-900 mb-1">Category</p>
-                              <p className="text-gray-600">{mockEvent.category}</p>
-                              <p className="text-gray-600">{mockEvent.eventType}</p>
+                              <p className="font-semibold text-gray-900 mb-1">Event Type</p>
+                              <p className="text-gray-600">{event.eventType}</p>
+                              <p className="text-gray-600">Category: {event.categoryName}</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="space-y-4">
+                          <div className="flex items-start space-x-4">
+                            <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-green-100 to-green-200 rounded-xl flex items-center justify-center">
+                              <Icon name="Clock" className="h-6 w-6 text-green-600" />
+                            </div>
+                            <div>
+                              <p className="font-semibold text-gray-900 mb-1">Schedule</p>
+                              <p className="text-gray-600">
+                                {formatEventDateTime(event.startDateTime, event.endDateTime)}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-start space-x-4">
+                            <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-orange-100 to-orange-200 rounded-xl flex items-center justify-center">
+                              <Icon name="MapPin" className="h-6 w-6 text-orange-600" />
+                            </div>
+                            <div>
+                              <p className="font-semibold text-gray-900 mb-1">Venue</p>
+                              <p className="text-gray-600">{event.venue}</p>
+                              <p className="text-gray-600">{event.address}</p>
+                              {event.city && event.country && (
+                                <p className="text-gray-600">{event.city}, {event.country}</p>
+                              )}
                             </div>
                           </div>
                         </div>
                       </div>
 
-                      {/* Organizer Section */}
+                      {/* Registration Status */}
                       <div className="pt-6 border-t border-gray-200">
-                        <h4 className="font-semibold text-gray-900 mb-4 flex items-center">
-                          <Icon name="User" className="mr-2 h-5 w-5 text-blue-600" />
-                          Event Organizer
-                        </h4>
-                        <div className="flex items-center space-x-4">
-                          <Avatar className="h-16 w-16 border-2 border-white shadow-lg">
-                            <AvatarImage src={mockEvent.organizer.avatar} />
-                            <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white font-semibold">
-                              TE
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <p className="font-semibold text-gray-900 text-lg">{mockEvent.organizer.name}</p>
-                            <p className="text-gray-600">{mockEvent.organizer.email}</p>
-                          </div>
+                        <div className="flex items-center justify-between">
+                          <h4 className="font-semibold text-gray-900 flex items-center">
+                            <Icon name="CheckCircle" className="mr-2 h-5 w-5 text-green-600" />
+                            Registration Status
+                          </h4>
+                          <Badge
+                            variant={event.isRegistrationOpen ? 'default' : 'secondary'}
+                            className={event.isRegistrationOpen ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}
+                          >
+                            {event.isRegistrationOpen ? 'Open' : 'Closed'}
+                          </Badge>
                         </div>
+                        {event.isUserRegistered && (
+                          <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                            <p className="text-green-800 font-medium flex items-center">
+                              <Icon name="CheckCircle" className="mr-2 h-4 w-4" />
+                              You are registered for this event!
+                            </p>
+                          </div>
+                        )}
                       </div>
                     </CardContent>
                   </Card>
@@ -266,7 +360,7 @@ export const EventDetailPage = () => {
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-4">
-                        {mockEvent.agenda.map((item, index) => (
+                        {agenda.map((item, index) => (
                           <div key={index} className="flex items-start space-x-4 p-4 rounded-xl bg-gradient-to-r from-gray-50 to-blue-50/30 hover:from-white hover:to-blue-50/50 transition-all duration-300 border border-gray-100 hover:border-blue-200 hover:shadow-md">
                             <div className="flex-shrink-0 w-16 text-sm font-bold text-blue-600 pt-1">
                               {item.time}
@@ -297,8 +391,11 @@ export const EventDetailPage = () => {
                     </CardHeader>
                     <CardContent className="space-y-6">
                       <div>
-                        <h4 className="font-semibold text-gray-900 mb-2 text-lg">{mockEvent.venue}</h4>
-                        <p className="text-gray-600 mb-4">{mockEvent.address}</p>
+                        <h4 className="font-semibold text-gray-900 mb-2 text-lg">{event.venue}</h4>
+                        <p className="text-gray-600 mb-4">{event.address}</p>
+                        {event.city && event.country && (
+                          <p className="text-gray-600 mb-4">{event.city}, {event.country}</p>
+                        )}
                       </div>
                       
                       <div className="bg-gradient-to-br from-gray-100 to-blue-50 rounded-xl h-64 flex items-center justify-center border border-gray-200">
@@ -307,7 +404,7 @@ export const EventDetailPage = () => {
                             <Icon name="MapPin" className="h-8 w-8 text-blue-600" />
                           </div>
                           <p className="text-gray-600 font-medium">Interactive map would be displayed here</p>
-                          <p className="text-sm text-gray-500 mt-1">(Phase 2 feature)</p>
+                          <p className="text-sm text-gray-500 mt-1">(Feature coming soon)</p>
                         </div>
                       </div>
 
@@ -334,7 +431,9 @@ export const EventDetailPage = () => {
             <div className="animate-fade-in" style={{animationDelay: '0.4s'}}>
               <Card className="bg-white/90 backdrop-blur-sm shadow-xl border border-white/20 sticky top-8 hover:shadow-2xl transition-all duration-300">
                 <CardHeader>
-                  <CardTitle className="text-center text-xl">Register for Event</CardTitle>
+                  <CardTitle className="text-center text-xl">
+                    {event.isUserRegistered ? 'Registration Confirmed' : 'Register for Event'}
+                  </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div className="text-center">
@@ -345,42 +444,68 @@ export const EventDetailPage = () => {
                   <div className="space-y-3">
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-600">Available spots:</span>
-                      <span className="font-semibold text-green-600">{mockEvent.remainingCapacity}</span>
+                      <span className={`font-semibold ${event.remainingCapacity > 10 ? 'text-green-600' : 'text-orange-600'}`}>
+                        {event.remainingCapacity}
+                      </span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-600">Total capacity:</span>
-                      <span className="font-semibold text-gray-900">{mockEvent.capacity}</span>
+                      <span className="font-semibold text-gray-900">{event.capacity}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Registered:</span>
+                      <span className="font-semibold text-blue-600">{event.currentRegistrations}</span>
                     </div>
                   </div>
 
                   <div className="w-full bg-gray-200 rounded-full h-3">
                     <div 
-                      className="bg-gradient-to-r from-blue-500 to-indigo-500 h-3 rounded-full transition-all duration-500" 
-                      style={{ width: `${(mockEvent.currentRegistrations / mockEvent.capacity) * 100}%` }}
+                      className={`h-3 rounded-full transition-all duration-500 ${
+                        (event.currentRegistrations / event.capacity) > 0.8 
+                          ? 'bg-gradient-to-r from-orange-500 to-red-500' 
+                          : 'bg-gradient-to-r from-blue-500 to-indigo-500'
+                      }`}
+                      style={{ width: `${Math.min((event.currentRegistrations / event.capacity) * 100, 100)}%` }}
                     ></div>
                   </div>
 
-                  {mockEvent.isUserRegistered ? (
+                  {event.isUserRegistered ? (
                     <div className="space-y-3">
                       <div className="bg-green-50 border-2 border-green-200 rounded-xl p-4 text-center">
                         <Icon name="CheckCircle" className="h-8 w-8 text-green-600 mx-auto mb-2" />
                         <p className="text-green-800 font-semibold">You're registered!</p>
+                        <p className="text-green-600 text-sm mt-1">Event details have been sent to your email</p>
                       </div>
-                      <Button variant="outline" className="w-full bg-white hover:bg-gray-50 border-gray-200">
-                        <Icon name="Calendar" className="mr-2 h-4 w-4" />
-                        Add to Calendar
+                      <Button variant="outline" className="w-full bg-white hover:bg-gray-50 border-gray-200" asChild>
+                        <Link to="/registrations">
+                          <Icon name="Calendar" className="mr-2 h-4 w-4" />
+                          View My Registrations
+                        </Link>
                       </Button>
                     </div>
                   ) : (
                     <Button 
                       className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg hover:shadow-xl transition-all duration-300 h-12 text-lg font-semibold" 
-                      disabled={mockEvent.remainingCapacity === 0}
+                      disabled={event.remainingCapacity === 0 || !event.isRegistrationOpen || isRegistering}
+                      onClick={handleRegister}
                     >
-                      {mockEvent.remainingCapacity === 0 ? (
+                      {isRegistering ? (
+                        <>
+                          <Icon name="Loader2" className="mr-2 h-5 w-5 animate-spin" />
+                          Registering...
+                        </>
+                      ) : event.remainingCapacity === 0 ? (
                         <>
                           <Icon name="X" className="mr-2 h-5 w-5" />
                           Event Full
                         </>
+                      ) : !event.isRegistrationOpen ? (
+                        <>
+                          <Icon name="Lock" className="mr-2 h-5 w-5" />
+                          Registration Closed
+                        </>
+                      ) : !isAuthenticated ? (
+                        'Sign In to Register'
                       ) : (
                         'Register Now'
                       )}
@@ -411,47 +536,68 @@ export const EventDetailPage = () => {
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
                       <span className="text-gray-600">Event ID:</span>
-                      <p className="font-mono font-semibold text-blue-600">#{mockEvent.id.toString().padStart(6, '0')}</p>
+                      <p className="font-mono font-semibold text-blue-600">#{event.id.toString().padStart(6, '0')}</p>
                     </div>
                     <div>
                       <span className="text-gray-600">Created:</span>
-                      <p className="font-medium">2 weeks ago</p>
+                      <p className="font-medium">{formatRelativeTime(event.createdAt)}</p>
                     </div>
                     <div>
                       <span className="text-gray-600">Updated:</span>
-                      <p className="font-medium">3 days ago</p>
+                      <p className="font-medium">{formatRelativeTime(event.updatedAt)}</p>
                     </div>
                     <div>
-                      <span className="text-gray-600">Language:</span>
-                      <p className="font-medium">English</p>
+                      <span className="text-gray-600">Status:</span>
+                      <p className="font-medium">
+                        {event.isRegistrationOpen ? 'Open' : 'Closed'}
+                      </p>
                     </div>
                   </div>
                 </CardContent>
               </Card>
             </div>
 
-            {/* Related Events - Now using EventCard organism */}
-            <div className="animate-fade-in" style={{animationDelay: '0.6s'}}>
-              <Card className="bg-white/80 backdrop-blur-sm shadow-lg border border-white/20 hover:shadow-xl transition-all duration-300">
-                <CardHeader>
-                  <CardTitle className="text-lg">Related Events</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {relatedEvents.map((event) => (
-                    <EventCard 
-                      key={event.id}
-                      event={event}
-                      variant="compact"
-                      showActions={false}
-                      onRegister={handleRegister}
-                    />
-                  ))}
-                  <Link to="/events" className="block text-sm text-blue-600 hover:text-blue-800 font-medium text-center pt-2 border-t border-gray-100 transition-colors">
-                    View all related events →
-                  </Link>
-                </CardContent>
-              </Card>
-            </div>
+            {/* Related Events */}
+            {relatedEvents.length > 0 && (
+              <div className="animate-fade-in" style={{animationDelay: '0.6s'}}>
+                <Card className="bg-white/80 backdrop-blur-sm shadow-lg border border-white/20 hover:shadow-xl transition-all duration-300">
+                  <CardHeader>
+                    <CardTitle className="text-lg">Related Events</CardTitle>
+                    <p className="text-sm text-gray-600">More events in {event.categoryName}</p>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {relatedLoading ? (
+                      <div className="space-y-4">
+                        {[...Array(2)].map((_, i) => (
+                          <div key={i} className="animate-pulse">
+                            <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                            <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <>
+                        {relatedEvents.map((relatedEvent) => (
+                          <EventCard 
+                            key={relatedEvent.id}
+                            event={relatedEvent}
+                            variant="compact"
+                            showActions={false}
+                            onRegister={handleRelatedEventRegister}
+                          />
+                        ))}
+                        <Link 
+                          to={`/events?categoryId=${event.categoryId}`} 
+                          className="block text-sm text-blue-600 hover:text-blue-800 font-medium text-center pt-2 border-t border-gray-100 transition-colors"
+                        >
+                          View all {event.categoryName} events →
+                        </Link>
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            )}
           </div>
         </div>
       </div>

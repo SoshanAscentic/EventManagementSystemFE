@@ -1,33 +1,46 @@
-import { useEffect } from 'react'
-import { useAppSelector } from '@/app/hooks'
+import { useEffect, useState } from 'react'
 import { signalRService } from '@/shared/lib/signalr'
 import { useAuth } from './useAuth'
 
 export const useSignalR = () => {
-  const { isAuthenticated, roles } = useAuth()
-  const connectionStatus = useAppSelector(state => state.notifications.connectionStatus)
+  const { isAuthenticated, user } = useAuth()
+  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'connecting'>('disconnected')
 
   useEffect(() => {
-    if (isAuthenticated) {
-      signalRService.start().then(() => {
-        // Join role-specific groups
-        roles.forEach(role => {
-          if (role === 'Admin') {
-            signalRService.joinAdminGroup?.()
+    if (isAuthenticated && user) {
+      setConnectionStatus('connecting')
+      
+      signalRService.start()
+        .then(() => {
+          setConnectionStatus(signalRService.connectionStatus as 'connected' | 'disconnected')
+          
+          // Join role-specific groups based on user roles
+          if (user.roles && user.roles.includes('Admin')) {
+            signalRService.joinAdminGroup()
           }
         })
-      }).catch(console.error)
+        .catch(() => {
+          setConnectionStatus('disconnected')
+        })
     } else {
-      signalRService.stop().catch(console.error)
+      signalRService.stop()
+        .then(() => {
+          setConnectionStatus('disconnected')
+        })
+        .catch(() => {
+          setConnectionStatus('disconnected')
+        })
     }
 
     return () => {
-      signalRService.stop().catch(console.error)
+      signalRService.stop().catch(() => {
+        // Ignore cleanup errors
+      })
     }
-  }, [isAuthenticated, roles])
+  }, [isAuthenticated, user])
 
   return {
     connectionStatus,
     isConnected: connectionStatus === 'connected',
   }
-}
+} 

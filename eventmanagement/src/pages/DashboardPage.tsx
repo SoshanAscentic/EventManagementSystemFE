@@ -1,63 +1,70 @@
+import { Link } from 'react-router-dom'
 import { StatCard } from '@/components/molecules'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Badge, Icon } from '@/components/atoms'
-
-const dashboardStats = [
-  {
-    title: 'Total Events',
-    value: '1,234',
-    change: { value: 12, trend: 'up' as const },
-    icon: 'Calendar' as const,
-  },
-  {
-    title: 'Active Users',
-    value: '5,678',
-    change: { value: 8, trend: 'up' as const },
-    icon: 'Users' as const,
-  },
-  {
-    title: 'This Month',
-    value: '89',
-    change: { value: 15, trend: 'up' as const },
-    icon: 'TrendingUp' as const,
-  },
-  {
-    title: 'Revenue',
-    value: '$12,345',
-    change: { value: 3, trend: 'down' as const },
-    icon: 'DollarSign' as const,
-  },
-]
-
-const recentEvents = [
-  {
-    id: 1,
-    title: 'React Conference 2024',
-    date: '2024-10-15',
-    registrations: 450,
-    capacity: 500,
-    status: 'Active',
-  },
-  {
-    id: 2,
-    title: 'Digital Marketing Workshop',
-    date: '2024-10-20',
-    registrations: 75,
-    capacity: 100,
-    status: 'Active',
-  },
-  {
-    id: 3,
-    title: 'Art Gallery Opening',
-    date: '2024-10-25',
-    registrations: 100,
-    capacity: 200,
-    status: 'Draft',
-  },
-]
+import { Badge, Icon, Spinner } from '@/components/atoms'
+import { useGetDashboardQuery, useGetCapacityAlertsQuery } from '@/features/admin/api/adminApi'
+import { formatNumber, formatRelativeTime } from '@/shared/utils/formatters'
 
 export const DashboardPage = () => {
+  const { data: dashboardData, isLoading: dashboardLoading, error: dashboardError } = useGetDashboardQuery()
+  const { data: alertsData, isLoading: alertsLoading } = useGetCapacityAlertsQuery({ threshold: 0.8 })
+
+  const dashboard = dashboardData?.data
+  const alerts = alertsData?.data || []
+
+  if (dashboardLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-indigo-50/20 flex items-center justify-center">
+        <div className="text-center">
+          <Spinner size="large" className="mb-4" />
+          <p className="text-gray-600">Loading dashboard...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (dashboardError || !dashboard) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-indigo-50/20">
+        <div className="relative space-y-8 p-8">
+          <div className="text-center">
+            <Icon name="AlertCircle" className="h-12 w-12 text-red-500 mx-auto mb-4" />
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Unable to Load Dashboard</h1>
+            <p className="text-gray-600 mb-4">There was an error loading the dashboard data.</p>
+            <Button onClick={() => window.location.reload()}>
+              <Icon name="RotateCcw" className="mr-2 h-4 w-4" />
+              Retry
+            </Button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  const dashboardStats = [
+    {
+      title: 'Total Events',
+      value: formatNumber(dashboard.totalEvents),
+      icon: 'Calendar' as const,
+    },
+    {
+      title: 'Active Users',
+      value: formatNumber(dashboard.totalUsers),
+      icon: 'Users' as const,
+    },
+    {
+      title: 'Total Registrations',
+      value: formatNumber(dashboard.totalRegistrations),
+      icon: 'UserCheck' as const,
+    },
+    {
+      title: 'Active Events',
+      value: formatNumber(dashboard.activeEvents),
+      icon: 'TrendingUp' as const,
+    },
+  ]
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-indigo-50/20">
       {/* Background Elements */}
@@ -95,63 +102,97 @@ export const DashboardPage = () => {
           ))}
         </div>
 
-        {/* Recent Events and Quick Actions */}
+        {/* Capacity Alerts */}
+        {alerts.length > 0 && (
+          <div className="animate-fade-in" style={{animationDelay: '0.2s'}}>
+            <Card className="bg-white/80 backdrop-blur-sm shadow-lg border border-white/20 hover:shadow-xl transition-all duration-300">
+              <CardHeader>
+                <CardTitle className="flex items-center text-xl">
+                  <Icon name="AlertTriangle" className="mr-3 h-5 w-5 text-orange-500" />
+                  Capacity Alerts
+                  <Badge variant="destructive" className="ml-2">{alerts.length}</Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {alerts.slice(0, 5).map((event) => (
+                    <div
+                      key={event.id}
+                      className="flex items-center justify-between p-4 border border-orange-100 rounded-xl bg-gradient-to-r from-orange-50 to-red-50/30 hover:from-orange-100 hover:to-red-50/50 transition-all duration-300"
+                    >
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-gray-900 mb-1">{event.title}</h3>
+                        <div className="flex items-center gap-4 text-sm text-gray-500">
+                          <div className="flex items-center">
+                            <Icon name="Calendar" className="mr-1 h-3 w-3 text-blue-500" />
+                            {new Date(event.startDateTime).toLocaleDateString()}
+                          </div>
+                          <div className="flex items-center">
+                            <Icon name="Users" className="mr-1 h-3 w-3 text-orange-500" />
+                            {event.currentRegistrations}/{event.capacity}
+                          </div>
+                          <div className="flex items-center">
+                            <Icon name="AlertTriangle" className="mr-1 h-3 w-3 text-red-500" />
+                            {event.remainingCapacity} spots left
+                          </div>
+                        </div>
+                      </div>
+                      <Button variant="outline" size="sm" asChild>
+                        <Link to={`/admin/events/${event.id}`}>
+                          View Event
+                        </Link>
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Recent Activity and Quick Actions */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Recent Events */}
+          {/* Recent Registrations */}
           <div className="lg:col-span-2 animate-fade-in" style={{animationDelay: '0.3s'}}>
             <Card className="bg-white/80 backdrop-blur-sm shadow-lg border border-white/20 hover:shadow-xl transition-all duration-300">
               <CardHeader className="flex flex-row items-center justify-between pb-4">
                 <CardTitle className="text-xl flex items-center">
-                  <Icon name="Calendar" className="mr-3 h-5 w-5 text-blue-600" />
-                  Recent Events
+                  <Icon name="UserPlus" className="mr-3 h-5 w-5 text-green-600" />
+                  Recent Registrations
                 </CardTitle>
-                <Button variant="outline" size="sm" className="bg-white hover:bg-blue-50 border-gray-200 hover:border-blue-300 transition-colors">
-                  View All
+                <Button variant="outline" size="sm" asChild>
+                  <Link to="/admin/registrations">View All</Link>
                 </Button>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {recentEvents.map((event, index) => (
-                    <div
-                      key={event.id}
-                      className="flex items-center justify-between p-4 border border-gray-100 rounded-xl bg-gradient-to-r from-gray-50 to-blue-50/30 hover:from-white hover:to-blue-50/50 transition-all duration-300 hover:shadow-md"
-                    >
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-gray-900 mb-2">{event.title}</h3>
-                        <div className="flex items-center space-x-4 text-sm text-gray-500">
-                          <div className="flex items-center">
-                            <Icon name="Calendar" className="mr-1 h-3 w-3 text-blue-500" />
-                            {new Date(event.date).toLocaleDateString()}
-                          </div>
-                          <div className="flex items-center">
-                            <Icon name="Users" className="mr-1 h-3 w-3 text-green-500" />
-                            {event.registrations}/{event.capacity} registered
+                  {dashboard.recentRegistrations?.length > 0 ? (
+                    dashboard.recentRegistrations.map((registration, index) => (
+                      <div
+                        key={registration.id}
+                        className="flex items-center justify-between p-4 border border-gray-100 rounded-xl bg-gradient-to-r from-gray-50 to-green-50/30 hover:from-white hover:to-green-50/50 transition-all duration-300"
+                      >
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-gray-900 mb-1">{registration.eventTitle}</h3>
+                          <div className="flex items-center gap-4 text-sm text-gray-500">
+                            <div className="flex items-center">
+                              <Icon name="User" className="mr-1 h-3 w-3 text-blue-500" />
+                              {registration.userName}
+                            </div>
+                            <div className="flex items-center">
+                              <Icon name="Clock" className="mr-1 h-3 w-3 text-green-500" />
+                              {formatRelativeTime(registration.registeredAt)}
+                            </div>
                           </div>
                         </div>
-                        {/* Progress Bar */}
-                        <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
-                          <div 
-                            className="bg-gradient-to-r from-blue-500 to-indigo-500 h-2 rounded-full transition-all duration-500" 
-                            style={{ width: `${(event.registrations / event.capacity) * 100}%` }}
-                          ></div>
-                        </div>
                       </div>
-                      <div className="flex items-center space-x-3 ml-4">
-                        <Badge
-                          className={
-                            event.status === 'Active' 
-                              ? 'bg-green-100 text-green-800 border-green-200' 
-                              : 'bg-gray-100 text-gray-800 border-gray-200'
-                          }
-                        >
-                          {event.status}
-                        </Badge>
-                        <Button variant="ghost" size="sm" className="hover:bg-gray-100 transition-colors">
-                          <Icon name="MoreHorizontal" className="h-4 w-4" />
-                        </Button>
-                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-8 text-gray-500">
+                      <Icon name="Users" className="mx-auto h-12 w-12 opacity-50 mb-4" />
+                      <p>No recent registrations</p>
                     </div>
-                  ))}
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -168,64 +209,60 @@ export const DashboardPage = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <Button className="w-full justify-start bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-md hover:shadow-lg transition-all duration-300">
-                    <Icon name="Plus" className="mr-2 h-4 w-4" />
-                    Create New Event
+                  <Button className="w-full justify-start bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-md hover:shadow-lg transition-all duration-300" asChild>
+                    <Link to="/admin/events/create">
+                      <Icon name="Plus" className="mr-2 h-4 w-4" />
+                      Create New Event
+                    </Link>
                   </Button>
-                  <Button variant="outline" className="w-full justify-start bg-white hover:bg-gray-50 border-gray-200 hover:border-blue-300 transition-colors">
-                    <Icon name="Users" className="mr-2 h-4 w-4" />
-                    Manage Users
+                  <Button variant="outline" className="w-full justify-start bg-white hover:bg-gray-50 border-gray-200 hover:border-blue-300 transition-colors" asChild>
+                    <Link to="/admin/events">
+                      <Icon name="Calendar" className="mr-2 h-4 w-4" />
+                      Manage Events
+                    </Link>
                   </Button>
-                  <Button variant="outline" className="w-full justify-start bg-white hover:bg-gray-50 border-gray-200 hover:border-blue-300 transition-colors">
-                    <Icon name="Folder" className="mr-2 h-4 w-4" />
-                    Manage Categories
+                  <Button variant="outline" className="w-full justify-start bg-white hover:bg-gray-50 border-gray-200 hover:border-blue-300 transition-colors" asChild>
+                    <Link to="/admin/users">
+                      <Icon name="Users" className="mr-2 h-4 w-4" />
+                      Manage Users
+                    </Link>
                   </Button>
-                  <Button variant="outline" className="w-full justify-start bg-white hover:bg-gray-50 border-gray-200 hover:border-blue-300 transition-colors">
-                    <Icon name="BarChart3" className="mr-2 h-4 w-4" />
-                    View Analytics
-                  </Button>
-                  <Button variant="outline" className="w-full justify-start bg-white hover:bg-gray-50 border-gray-200 hover:border-blue-300 transition-colors">
-                    <Icon name="Settings" className="mr-2 h-4 w-4" />
-                    System Settings
+                  <Button variant="outline" className="w-full justify-start bg-white hover:bg-gray-50 border-gray-200 hover:border-blue-300 transition-colors" asChild>
+                    <Link to="/admin/categories">
+                      <Icon name="Folder" className="mr-2 h-4 w-4" />
+                      Manage Categories
+                    </Link>
                   </Button>
                 </CardContent>
               </Card>
             </div>
 
-            {/* System Status */}
-            <div className="animate-fade-in" style={{animationDelay: '0.5s'}}>
-              <Card className="bg-white/80 backdrop-blur-sm shadow-lg border border-white/20 hover:shadow-xl transition-all duration-300">
-                <CardHeader>
-                  <CardTitle className="text-xl flex items-center">
-                    <Icon name="Activity" className="mr-3 h-5 w-5 text-green-500" />
-                    System Status
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-gradient-to-r from-green-50 to-emerald-50/50 border border-green-100">
-                    <span className="text-sm font-medium text-gray-700">Database</span>
-                    <Badge className="bg-green-100 text-green-800 border-green-200">
-                      <Icon name="CheckCircle" className="mr-1 h-3 w-3" />
-                      Healthy
-                    </Badge>
-                  </div>
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-gradient-to-r from-green-50 to-emerald-50/50 border border-green-100">
-                    <span className="text-sm font-medium text-gray-700">API</span>
-                    <Badge className="bg-green-100 text-green-800 border-green-200">
-                      <Icon name="CheckCircle" className="mr-1 h-3 w-3" />
-                      Online
-                    </Badge>
-                  </div>
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-gradient-to-r from-yellow-50 to-orange-50/50 border border-yellow-100">
-                    <span className="text-sm font-medium text-gray-700">Storage</span>
-                    <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">
-                      <Icon name="AlertTriangle" className="mr-1 h-3 w-3" />
-                      85% Full
-                    </Badge>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+            {/* Popular Events */}
+            {dashboard.popularEvents?.length > 0 && (
+              <div className="animate-fade-in" style={{animationDelay: '0.5s'}}>
+                <Card className="bg-white/80 backdrop-blur-sm shadow-lg border border-white/20 hover:shadow-xl transition-all duration-300">
+                  <CardHeader>
+                    <CardTitle className="text-xl flex items-center">
+                      <Icon name="TrendingUp" className="mr-3 h-5 w-5 text-purple-500" />
+                      Popular Events
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {dashboard.popularEvents.slice(0, 3).map((event, index) => (
+                      <div key={event.id} className="flex items-center justify-between p-3 rounded-lg bg-gradient-to-r from-purple-50 to-pink-50/50 border border-purple-100">
+                        <div className="flex-1 min-w-0">
+                          <h4 className="text-sm font-semibold text-gray-900 truncate">{event.title}</h4>
+                          <p className="text-xs text-gray-500">{event.registrationCount} registrations</p>
+                        </div>
+                        <Badge className="bg-purple-100 text-purple-800 border-purple-200">
+                          #{index + 1}
+                        </Badge>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              </div>
+            )}
           </div>
         </div>
       </div>

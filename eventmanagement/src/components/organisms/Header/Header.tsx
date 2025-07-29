@@ -11,17 +11,21 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback, AvatarImage, Badge, Icon } from '@/components/atoms'
 import { useAuth } from '@/shared/hooks/useAuth'
+import { useLogoutMutation } from '@/features/auth/api/authApi'
+import { useAppDispatch } from '@/app/hooks'
+import { clearAuth } from '@/app/slices/authSlice'
 import { PermissionGuard } from '@/shared/components/PermissionGaurd'
 import { cn } from '@/lib/utils'
 
 export interface HeaderProps {
-  onLogout?: () => void
   className?: string
 }
 
-export const Header = ({ onLogout, className }: HeaderProps) => {
+export const Header = ({ className }: HeaderProps) => {
   const navigate = useNavigate()
+  const dispatch = useAppDispatch()
   const { user, isAuthenticated, hasPermission } = useAuth()
+  const [logout, { isLoading: isLoggingOut }] = useLogoutMutation()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   const navigationItems = [
@@ -31,9 +35,17 @@ export const Header = ({ onLogout, className }: HeaderProps) => {
 
   const userInitials = user ? `${user.firstName[0]}${user.lastName[0]}` : 'U'
 
-  const handleLogout = () => {
-    onLogout?.()
-    navigate('/auth/login')
+  const handleLogout = async () => {
+    try {
+      await logout().unwrap()
+      dispatch(clearAuth())
+      navigate('/auth/login')
+    } catch (error) {
+      console.error('Logout failed:', error)
+      // Clear auth state anyway on error
+      dispatch(clearAuth())
+      navigate('/auth/login')
+    }
   }
 
   return (
@@ -110,6 +122,13 @@ export const Header = ({ onLogout, className }: HeaderProps) => {
                         <p className="text-xs leading-none text-muted-foreground">
                           {user?.email}
                         </p>
+                        <div className="flex gap-1 mt-2">
+                          {user?.roles.map((role: string) => (
+                            <Badge key={role} variant="secondary" className="text-xs">
+                              {role}
+                            </Badge>
+                          ))}
+                        </div>
                       </div>
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
@@ -117,7 +136,7 @@ export const Header = ({ onLogout, className }: HeaderProps) => {
                       <Icon name="User" className="mr-2 h-4 w-4" />
                       Profile
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => navigate('/profile/registrations')}>
+                    <DropdownMenuItem onClick={() => navigate('/registrations')}>
                       <Icon name="Ticket" className="mr-2 h-4 w-4" />
                       My Registrations
                     </DropdownMenuItem>
@@ -125,10 +144,22 @@ export const Header = ({ onLogout, className }: HeaderProps) => {
                       <Icon name="Settings" className="mr-2 h-4 w-4" />
                       Settings
                     </DropdownMenuItem>
+                    
+                    {/* Admin Dashboard Link */}
+                    <PermissionGuard permissions={['canAccessAdminPanel']}>
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => navigate('/admin')}>
+                          <Icon name="Shield" className="mr-2 h-4 w-4" />
+                          Admin Dashboard
+                        </DropdownMenuItem>
+                      </>
+                    </PermissionGuard>
+                    
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={handleLogout}>
+                    <DropdownMenuItem onClick={handleLogout} disabled={isLoggingOut}>
                       <Icon name="LogOut" className="mr-2 h-4 w-4" />
-                      Log out
+                      {isLoggingOut ? 'Logging out...' : 'Log out'}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
