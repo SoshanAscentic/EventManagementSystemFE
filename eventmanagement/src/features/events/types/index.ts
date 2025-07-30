@@ -99,11 +99,10 @@ export interface AdvancedEventFilters extends EventFilters {
 
 // ===== IMAGE MANAGEMENT TYPES =====
 
-export interface EventImageDto {
-  id: number
-  url: string
+export interface UploadImageRequest {
+  eventId: number
+  file: File
   isPrimary: boolean
-  altText?: string
 }
 
 export interface SetImagePrimaryRequest {
@@ -116,6 +115,24 @@ export interface DeleteImageRequest {
   imageId: number
 }
 
+export interface EventImageDto {
+  id: number
+  url: string
+  isPrimary: boolean
+  altText?: string
+}
+
+// Enhanced CreateEventRequest to support image upload workflow
+export interface CreateEventRequestWithImages extends CreateEventRequest {
+  useDefaultImage?: boolean
+  newImages?: Array<{
+    id: number
+    url: string
+    isPrimary: boolean
+    file?: File
+    isNew?: boolean
+  }>
+}
 // ===== CAPACITY MANAGEMENT TYPES =====
 
 export interface UpdateEventCapacityRequest {

@@ -6,16 +6,18 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Avatar, AvatarFallback, AvatarImage, Badge, Icon, Spinner } from '@/components/atoms'
 import { ProfileEditForm } from '@/features/users/components/ProfileEditForm'
 import { useAuth } from '@/shared/hooks/useAuth'
-import { useGetMyRegistrationsQuery } from '@/features/registrations/api/registrationsApi'
+import { useGetMyRegistrationsQuery, useCancelRegistrationMutation } from '@/features/registrations/api/registrationsApi'
 import { useGetProfileQuery } from '@/features/users/api/usersApi'
 import { formatRelativeTime, formatEventDateTime } from '@/shared/utils/formatters'
 import { Link } from 'react-router-dom'
 import { useMemo } from 'react'
+import { ConfirmDialog } from '@/shared/components/ConfirmDialog'
 
 export const ProfilePage = () => {
   const { isAuthenticated } = useAuth()
   const [isEditing, setIsEditing] = useState(false)
   const [showSuccessMessage, setShowSuccessMessage] = useState(false)
+  const [cancellingId, setCancellingId] = useState<number | null>(null)
 
   // Fetch user's detailed profile
   const { 
@@ -35,6 +37,9 @@ export const ProfilePage = () => {
     pageSize: 20,
     ascending: false, // Most recent first
   })
+
+  // Cancel registration mutation
+  const [cancelRegistration, { isLoading: isCancelling }] = useCancelRegistrationMutation()
 
   const profile = profileData?.data
   const registrations = registrationsData?.data?.items || []
@@ -61,10 +66,10 @@ export const ProfilePage = () => {
   // Statistics from registrations
   const statistics = useMemo(() => {
     const totalRegistrations = registrations.length
-    const activeRegistrations = registrations.filter(r => r.status === 'Active').length
+    const activeRegistrations = registrations.filter(r => r.status === 'Registered').length
     const attendedEvents = registrations.filter(r => r.attended === true).length
     const upcomingEvents = registrations.filter(r => 
-      r.status === 'Active' && r.eventStartDateTime && new Date(r.eventStartDateTime) > new Date()
+      r.status === 'Registered' && r.eventStartDateTime && new Date(r.eventStartDateTime) > new Date()
     ).length
 
     return {
@@ -88,6 +93,19 @@ export const ProfilePage = () => {
 
   const handleEditCancel = () => {
     setIsEditing(false)
+  }
+
+  const handleCancelRegistration = async (registrationId: number) => {
+    try {
+      await cancelRegistration({ 
+        registrationId, 
+        reason: 'User requested cancellation from profile page' 
+      }).unwrap()
+      setCancellingId(null)
+      // The cache will be invalidated automatically
+    } catch (error) {
+      console.error('Failed to cancel registration:', error)
+    }
   }
 
   if (!isAuthenticated) {
@@ -344,20 +362,47 @@ export const ProfilePage = () => {
                               <div className="flex items-center space-x-3">
                                 <Badge
                                   className={
-                                    registration.status === 'Active' 
+                                    registration.status === 'Registered' 
                                       ? 'bg-green-100 text-green-800 border-green-200' 
                                       : registration.status === 'Cancelled'
                                       ? 'bg-red-100 text-red-800 border-red-200'
+                                      : registration.status === 'Attended'
+                                      ? 'bg-blue-100 text-blue-800 border-blue-200'
                                       : 'bg-gray-100 text-gray-800 border-gray-200'
                                   }
                                 >
                                   {registration.status || 'Unknown'}
                                 </Badge>
-                                <Button variant="outline" size="sm" asChild className="bg-white hover:bg-blue-50 border-gray-200 hover:border-blue-300 transition-colors">
-                                  <Link to={`/events/${registration.eventId}`}>
-                                    View Event
-                                  </Link>
-                                </Button>
+                                <div className="flex flex-col space-y-2">
+                                  <Button variant="outline" size="sm" asChild className="bg-white hover:bg-blue-50 border-gray-200 hover:border-blue-300 transition-colors">
+                                    <Link to={`/events/${registration.eventId}`}>
+                                      <Icon name="Eye" className="mr-1 h-3 w-3" />
+                                      View Event
+                                    </Link>
+                                  </Button>
+                                  
+                                  {registration.status === 'Registered' && (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="bg-white hover:bg-red-50 border-red-200 hover:border-red-300 text-red-600 transition-colors"
+                                      onClick={() => setCancellingId(registration.id)}
+                                      disabled={isCancelling && cancellingId === registration.id}
+                                    >
+                                      {isCancelling && cancellingId === registration.id ? (
+                                        <>
+                                          <Icon name="Loader2" className="mr-1 h-3 w-3 animate-spin" />
+                                          Cancelling...
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Icon name="XCircle" className="mr-1 h-3 w-3" />
+                                          Cancel
+                                        </>
+                                      )}
+                                    </Button>
+                                  )}
+                                </div>
                               </div>
                             </div>
                           ))}
@@ -502,6 +547,18 @@ export const ProfilePage = () => {
           )}
         </div>
       </div>
+
+      {/* Cancel Registration Dialog */}
+      <ConfirmDialog
+        open={cancellingId !== null}
+        onOpenChange={() => setCancellingId(null)}
+        title="Cancel Registration"
+        description="Are you sure you want to cancel this registration? This action cannot be undone and you may lose your spot in the event."
+        onConfirm={() => cancellingId && handleCancelRegistration(cancellingId)}
+        loading={isCancelling}
+        variant="destructive"
+        confirmText="Cancel Registration"
+      />
     </div>
   )
 }

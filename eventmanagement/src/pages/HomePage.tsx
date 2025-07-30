@@ -5,6 +5,8 @@ import { Icon, Badge, Spinner } from '@/components/atoms'
 import { EventCard } from '@/components/organisms'
 import { useGetUpcomingEventsQuery, useGetEventsQuery } from '@/features/events/api/eventsApi'
 import { useGetActiveCategoriesQuery } from '@/features/categories/api/categoriesApi'
+import { useGetDashboardQuery } from '@/features/admin/api/adminApi'
+import { useGetUsersQuery } from '@/features/users/api/usersApi'
 import { useMemo } from 'react'
 
 export const HomePage = () => {
@@ -12,28 +14,58 @@ export const HomePage = () => {
   const { 
     data: upcomingEventsData, 
     isLoading: eventsLoading, 
-    error: eventsError 
-  } = useGetUpcomingEventsQuery({ count: 3 })
+    error: eventsError,
+  } = useGetUpcomingEventsQuery({ count: 3 }, {
+    refetchOnMountOrArgChange: true
+  })
 
   // Fetch active categories
   const { 
     data: categoriesData, 
     isLoading: categoriesLoading, 
-    error: categoriesError 
-  } = useGetActiveCategoriesQuery()
+    error: categoriesError,
+  } = useGetActiveCategoriesQuery(undefined, {
+    refetchOnMountOrArgChange: true
+  })
 
   // Get a broader set of events for statistics
   const { 
     data: allEventsData, 
-    isLoading: statsLoading 
+    isLoading: statsLoading,
   } = useGetEventsQuery({
     pageNumber: 1,
-    pageSize: 100, // Get more events to calculate better stats
+    pageSize: 100,
+  }, {
+    refetchOnMountOrArgChange: true,
+    refetchOnFocus: true
+  })
+
+  // Get dashboard statistics for total users count
+  const { 
+    data: dashboardStatsData, 
+    isLoading: dashboardLoading,
+    error: dashboardError
+  } = useGetDashboardQuery(undefined, {
+    refetchOnMountOrArgChange: true
+  })
+
+  // Fallback: Get users data if dashboard fails (for total count)
+  const { 
+    data: usersData, 
+    isLoading: usersLoading,
+  } = useGetUsersQuery({
+    pageNumber: 1,
+    pageSize: 1
+  }, {
+    skip: !dashboardError,
+    refetchOnMountOrArgChange: true
   })
 
   const featuredEvents = upcomingEventsData?.data || []
   const categories = categoriesData?.data || []
   const allEvents = allEventsData?.data?.items || []
+  const dashboardStats = dashboardStatsData?.data
+  const usersPageData = usersData?.data
 
   // Calculate dynamic statistics from available data
   const statistics = useMemo(() => {
@@ -42,7 +74,16 @@ export const HomePage = () => {
       event.isRegistrationOpen && 
       new Date(event.startDateTime) > new Date()
     ).length
-    const totalUsers = allEvents.reduce((sum, event) => sum + event.currentRegistrations, 0)
+    
+    // Use dashboard stats for total users, fallback to users API total count
+    let totalUsers = 0
+    
+    if (dashboardStats?.totalUsers) {
+      totalUsers = dashboardStats.totalUsers
+    } else if (usersPageData?.totalCount) {
+      totalUsers = usersPageData.totalCount
+    }
+    
     const totalCategories = categories.length
 
     return {
@@ -51,7 +92,7 @@ export const HomePage = () => {
       totalUsers,
       totalCategories
     }
-  }, [allEvents, categories])
+  }, [allEvents, categories, dashboardStats, usersPageData])
 
   // Enhanced categories with counts from events data
   const categoriesWithCounts = useMemo(() => {
@@ -94,12 +135,12 @@ export const HomePage = () => {
   }, [categories, allEvents])
 
   const handleRegister = (eventId: number) => {
-    console.log('Register for event:', eventId)
     // This will be implemented with the registration API
   }
 
   // Loading state
-  if (eventsLoading || categoriesLoading || statsLoading) {
+  const isLoadingUsers = dashboardLoading || (dashboardError && usersLoading)
+  if (eventsLoading || categoriesLoading || statsLoading || isLoadingUsers) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-indigo-50/20 flex items-center justify-center">
         <div className="text-center">
@@ -617,7 +658,7 @@ export const HomePage = () => {
               <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 mb-6">
                 <Icon name="BarChart3" className="h-8 w-8 text-white" />
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">Track Your Events</h3>
+              <h3 className="text-xl font-semibent text-gray-900 mb-4">Track Your Events</h3>
               <p className="text-gray-600 leading-relaxed">
                 Keep track of your registrations and get notified about upcoming events you've joined.
               </p>

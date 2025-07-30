@@ -11,5 +11,4 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
-  // Remove proxy since we're directly calling the API with full URL
 })

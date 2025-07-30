@@ -24,7 +24,8 @@ export const EventEditPage = () => {
   const { 
     data: eventData, 
     isLoading: eventLoading, 
-    error: eventError 
+    error: eventError,
+    // Remove refetch since it's causing the error
   } = useGetEventByIdQuery(eventId, {
     skip: !eventId,
   })
@@ -35,17 +36,20 @@ export const EventEditPage = () => {
 
   const handleSubmit = async (data: any) => {
     try {
+      // Extract image data (images are managed separately in edit mode)
+      const { useDefaultImage, newImages, ...eventData } = data
+      
       await updateEvent({ 
         id: eventId, 
-        ...data 
+        ...eventData 
       }).unwrap()
       
+      // Don't refetch here - just navigate with success message
       navigate('/admin/events', {
-        state: { message: 'Event updated successfully!' }
+        state: { message: `Event "${eventData.title}" updated successfully!` }
       })
     } catch (error: any) {
       console.error('Failed to update event:', error)
-      // You could add a toast notification here
     }
   }
 
@@ -121,6 +125,39 @@ export const EventEditPage = () => {
             </div>
           </div>
         </div>
+
+        {/* Current Event Images Info */}
+        {event.images && event.images.length > 0 && (
+          <Card className="bg-white/80 backdrop-blur-sm shadow-lg border border-white/20 mb-6">
+            <CardHeader>
+              <CardTitle className="flex items-center text-lg">
+                <Icon name="Image" className="mr-2 h-5 w-5 text-purple-600" />
+                Current Event Images ({event.images.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {event.images.map((image) => (
+                  <div key={image.id} className="relative">
+                    <img
+                      src={image.url}
+                      alt="Event image"
+                      className="w-full h-24 object-cover rounded-lg border"
+                    />
+                    {image.isPrimary && (
+                      <div className="absolute top-1 left-1 bg-blue-500 text-white px-1 py-0.5 rounded text-xs">
+                        Primary
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <p className="text-sm text-gray-600 mt-4">
+                Use the image management step in the form below to add, remove, or change the primary image.
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Event Form */}
         <Card className="bg-white/80 backdrop-blur-sm shadow-xl border border-white/20">

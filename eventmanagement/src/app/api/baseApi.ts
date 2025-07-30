@@ -6,8 +6,14 @@ import { getTokenFromCookie } from '@/features/auth/api/authApi'
 const baseQuery = fetchBaseQuery({
   baseUrl: 'https://localhost:7026/api', 
   mode: 'cors',
-  prepareHeaders: (headers) => {
-    headers.set('Content-Type', 'application/json')
+  prepareHeaders: (headers, { endpoint }) => {
+    // DON'T set Content-Type for file uploads - let browser handle it
+    const isFileUpload = endpoint === 'uploadEventImage' || 
+                        (endpoint && typeof endpoint === 'string' && endpoint.includes('upload'))
+    
+    if (!isFileUpload) {
+      headers.set('Content-Type', 'application/json')
+    }
     headers.set('Accept', 'application/json')
     
     // Add Authorization header with token from cookie
@@ -106,4 +112,5 @@ export const baseApi = createApi({
     'Activity'
   ],
   endpoints: () => ({}),
-}) 
+})
+

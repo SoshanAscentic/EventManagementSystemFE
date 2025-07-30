@@ -132,25 +132,50 @@ export const eventsApi = baseApi.injectEndpoints({
         url: `/events/${id}`,
         method: 'DELETE',
       }),
+      transformResponse: (response: any) => ({
+        success: response.isSuccess,
+        data: response.data,
+        message: response.message,
+        errors: response.errors
+      }),
       invalidatesTags: (result, error, id) => [
         { type: 'Event', id },
         { type: 'Event', id: 'LIST' },
         { type: 'Event', id: 'UPCOMING' },
       ],
     }),
-
+    
     // ===== IMAGE MANAGEMENT (Admin only) =====
 
     uploadEventImage: builder.mutation<ApiResponse<any>, UploadImageRequest>({
       query: ({ eventId, file, isPrimary }) => {
+        console.log('🚀 Upload mutation called:', { 
+          eventId, 
+          fileName: file.name, 
+          fileSize: file.size, 
+          fileType: file.type,
+          isPrimary 
+        })
+        
         const formData = new FormData()
         formData.append('file', file)
+        
+        console.log('📦 FormData created with file:', formData.get('file'))
         
         return {
           url: `/events/${eventId}/images?isPrimary=${isPrimary}`,
           method: 'POST',
           body: formData,
-          formData: true,
+        }
+      },
+      // Transform the response to match your frontend expectations
+      transformResponse: (response: any) => {
+        // Convert backend isSuccess to frontend success
+        return {
+          success: response.isSuccess,
+          data: response.data,
+          message: response.message,
+          errors: response.errors
         }
       },
       invalidatesTags: (result, error, { eventId }) => [
@@ -158,29 +183,40 @@ export const eventsApi = baseApi.injectEndpoints({
         { type: 'Event', id: 'LIST' },
       ],
     }),
-
+    
     setImageAsPrimary: builder.mutation<ApiResponse<void>, SetImagePrimaryRequest>({
       query: ({ eventId, imageId }) => ({
         url: `/events/${eventId}/images/${imageId}/primary`,
         method: 'PUT',
       }),
-      invalidatesTags: (result, error, { eventId }) => [
-        { type: 'Event', id: eventId },
-        { type: 'Event', id: 'LIST' },
-      ],
-    }),
-
-    deleteEventImage: builder.mutation<ApiResponse<void>, DeleteImageRequest>({
-      query: ({ eventId, imageId }) => ({
-        url: `/events/${eventId}/images/${imageId}`,
-        method: 'DELETE',
+      transformResponse: (response: any) => ({
+        success: response.isSuccess,
+        data: response.data,
+        message: response.message,
+        errors: response.errors
       }),
       invalidatesTags: (result, error, { eventId }) => [
         { type: 'Event', id: eventId },
         { type: 'Event', id: 'LIST' },
       ],
     }),
-
+    
+    deleteEventImage: builder.mutation<ApiResponse<void>, DeleteImageRequest>({
+      query: ({ eventId, imageId }) => ({
+        url: `/events/${eventId}/images/${imageId}`,
+        method: 'DELETE',
+      }),
+      transformResponse: (response: any) => ({
+        success: response.isSuccess,
+        data: response.data,
+        message: response.message,
+        errors: response.errors
+      }),
+      invalidatesTags: (result, error, { eventId }) => [
+        { type: 'Event', id: eventId },
+        { type: 'Event', id: 'LIST' },
+      ],
+    }),
     // ===== CATEGORIES =====
 
     getCategories: builder.query<ApiResponse<CategoryDto[]>, { activeOnly?: boolean }>({
@@ -215,3 +251,4 @@ export const {
   // Categories
   useGetCategoriesQuery,
 } = eventsApi
+

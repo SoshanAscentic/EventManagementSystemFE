@@ -1,16 +1,15 @@
-// src/pages/EventManagementPage.tsx
 import { useState, useMemo } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Badge, Icon, Spinner } from '@/components/atoms'
+import { Icon, Spinner } from '@/components/atoms'
 import { SearchBox } from '@/components/molecules'
+import { EventCard } from '@/components/organisms'
 import { ConfirmDialog } from '@/shared/components/ConfirmDialog'
-import { useGetEventsQuery, useDeleteEventMutation } from '@/features/events/api/eventsApi'
+import { useGetEventsQuery, useDeleteEventMutation, useDeleteEventImageMutation } from '@/features/events/api/eventsApi'
 import { useAuth } from '@/shared/hooks/useAuth'
-import { formatEventDateTime, formatRelativeTime } from '@/shared/utils/formatters'
 import { useDebounce } from '@/shared/hooks/useDebounce'
 
 export const EventManagementPage = () => {
@@ -24,6 +23,7 @@ export const EventManagementPage = () => {
   const debouncedSearchTerm = useDebounce(searchTerm, 300)
 
   const [deleteEvent, { isLoading: isDeleting }] = useDeleteEventMutation()
+  const [deleteEventImage, { isLoading: isDeletingImages }] = useDeleteEventImageMutation()
 
   // Fetch events with filters
   const { 
@@ -74,31 +74,36 @@ export const EventManagementPage = () => {
 
   const handleDelete = async (eventId: number) => {
     try {
+      // Find the event to get its images
+      const event = events.find(e => e.id === eventId)
+      
+      if (event?.images && event.images.length > 0) {
+        // Delete all images first
+        console.log(`Deleting ${event.images.length} images for event ${eventId}`)
+        const imageDeletePromises = event.images.map(image => 
+          deleteEventImage({ eventId, imageId: image.id }).unwrap()
+        )
+        
+        await Promise.all(imageDeletePromises)
+        console.log('All images deleted successfully')
+      }
+      
+      // Then delete the event itself
       await deleteEvent(eventId).unwrap()
+      console.log('Event deleted successfully')
+      
       setDeletingEventId(null)
       refetch() // Refresh the events list
-      // You could add a success toast here
     } catch (error: any) {
       console.error('Failed to delete event:', error)
-      // You could add an error toast here
+      // Still close the dialog even if there's an error
+      setDeletingEventId(null)
     }
   }
 
   const handlePageChange = (newPage: number) => {
     setCurrentPage(newPage)
     window.scrollTo({ top: 0, behavior: 'smooth' })
-  }
-
-  const getEventStatus = (event: any) => {
-    const now = new Date()
-    const startDate = new Date(event.startDateTime)
-    const isUpcoming = startDate > now
-    const isActive = event.isRegistrationOpen
-
-    if (!isActive) return { label: 'Draft', color: 'bg-gray-100 text-gray-800' }
-    if (!isUpcoming) return { label: 'Completed', color: 'bg-blue-100 text-blue-800' }
-    if (event.remainingCapacity === 0) return { label: 'Sold Out', color: 'bg-red-100 text-red-800' }
-    return { label: 'Active', color: 'bg-green-100 text-green-800' }
   }
 
   // Loading state
@@ -148,21 +153,21 @@ export const EventManagementPage = () => {
     <div className="space-y-6">
       {/* Success Message */}
       {successMessage && (
-        <Alert className="bg-green-50 border-green-200">
+        <Alert className="bg-green-50 border-green-200 animate-fade-in">
           <Icon name="CheckCircle" className="h-4 w-4 text-green-600" />
           <AlertDescription className="text-green-800">{successMessage}</AlertDescription>
         </Alert>
       )}
 
       {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-fade-in">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Event Management</h1>
           <p className="text-gray-600 mt-1">Create and manage all events</p>
         </div>
         
         {hasPermission('canCreateEvents') && (
-          <Button asChild className="bg-blue-600 hover:bg-blue-700">
+          <Button asChild className="bg-blue-600 hover:bg-blue-700 shadow-lg hover:shadow-xl transition-all duration-300">
             <Link to="/admin/events/create">
               <Icon name="Plus" className="mr-2 h-4 w-4" />
               Create Event
@@ -172,7 +177,7 @@ export const EventManagementPage = () => {
       </div>
 
       {/* Filters */}
-      <Card className="bg-white/80 backdrop-blur-sm shadow-lg border border-white/20">
+      <Card className="bg-white/80 backdrop-blur-sm shadow-lg border border-white/20 animate-fade-in" style={{animationDelay: '0.1s'}}>
         <CardHeader>
           <CardTitle className="text-lg">Filters & Search</CardTitle>
         </CardHeader>
@@ -207,6 +212,7 @@ export const EventManagementPage = () => {
             <div className="flex items-end">
               <div className="text-sm text-gray-600">
                 Showing {filteredEvents.length} of {totalItems} events
+                {statusFilter !== 'all' && ` (filtered by ${statusFilter})`}
               </div>
             </div>
           </div>
@@ -216,94 +222,23 @@ export const EventManagementPage = () => {
       {/* Events Grid */}
       {filteredEvents.length > 0 ? (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredEvents.map((event) => {
-              const status = getEventStatus(event)
-              
-              return (
-                <Card key={event.id} className="bg-white/80 backdrop-blur-sm shadow-lg border border-white/20 hover:shadow-xl transition-all duration-300 overflow-hidden">
-                  <div className="relative">
-                    <img
-                      src={event.primaryImageUrl || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400&h=200&fit=crop'}
-                      alt={event.title}
-                      className="w-full h-48 object-cover"
-                    />
-                    <div className="absolute top-4 left-4">
-                      <Badge className={status.color}>
-                        {status.label}
-                      </Badge>
-                    </div>
-                    <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm rounded-full px-2 py-1 text-xs font-medium text-gray-700">
-                      ID: {event.id}
-                    </div>
-                  </div>
-                  
-                  <CardContent className="p-6">
-                    <div className="mb-4">
-                      <h3 className="font-semibold text-gray-900 text-lg mb-2 line-clamp-2">
-                        {event.title}
-                      </h3>
-                      <p className="text-gray-600 text-sm line-clamp-2 mb-3">
-                        {event.description}
-                      </p>
-                    </div>
-
-                    <div className="space-y-2 text-sm text-gray-500 mb-4">
-                      <div className="flex items-center">
-                        <Icon name="Calendar" className="h-4 w-4 mr-2 text-blue-500" />
-                        {formatEventDateTime(event.startDateTime, event.endDateTime)}
-                      </div>
-                      <div className="flex items-center">
-                        <Icon name="MapPin" className="h-4 w-4 mr-2 text-red-500" />
-                        {event.venue}
-                      </div>
-                      <div className="flex items-center">
-                        <Icon name="Users" className="h-4 w-4 mr-2 text-green-500" />
-                        {event.currentRegistrations}/{event.capacity} registered
-                      </div>
-                      <div className="flex items-center">
-                        <Icon name="Clock" className="h-4 w-4 mr-2 text-orange-500" />
-                        Created {formatRelativeTime(event.createdAt)}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <Button variant="outline" size="sm" asChild className="flex-1">
-                        <Link to={`/events/${event.id}`}>
-                          <Icon name="Eye" className="h-4 w-4 mr-1" />
-                          View
-                        </Link>
-                      </Button>
-                      
-                      {hasPermission('canEditEvents') && (
-                        <Button variant="outline" size="sm" asChild className="flex-1">
-                          <Link to={`/admin/events/${event.id}/edit`}>
-                            <Icon name="Edit" className="h-4 w-4 mr-1" />
-                            Edit
-                          </Link>
-                        </Button>
-                      )}
-                      
-                      {hasPermission('canDeleteEvents') && (
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => setDeletingEventId(event.id)}
-                          className="px-3"
-                        >
-                          <Icon name="Trash2" className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              )
-            })}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-fade-in" style={{animationDelay: '0.2s'}}>
+            {filteredEvents.map((event, index) => (
+              <div key={event.id} className="animate-fade-in" style={{animationDelay: `${0.05 * index}s`}}>
+                <EventCard 
+                  event={event}
+                  variant="admin"
+                  showActions={true}
+                  onRegister={() => {}} // Not used in admin variant
+                  onDelete={hasPermission('canDeleteEvents') ? (eventId) => setDeletingEventId(eventId) : undefined}
+                />
+              </div>
+            ))}
           </div>
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 animate-fade-in" style={{animationDelay: '0.3s'}}>
               <div className="text-sm text-gray-600">
                 Page {currentPage} of {totalPages} ({totalItems} total events)
               </div>
@@ -364,9 +299,11 @@ export const EventManagementPage = () => {
         </>
       ) : (
         /* Empty State */
-        <Card className="bg-white/80 backdrop-blur-sm shadow-lg border border-white/20">
+        <Card className="bg-white/80 backdrop-blur-sm shadow-lg border border-white/20 animate-fade-in" style={{animationDelay: '0.2s'}}>
           <CardContent className="py-12 text-center">
-            <Icon name="Calendar" className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+            <div className="mx-auto w-24 h-24 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center mb-6">
+              <Icon name="Calendar" className="mx-auto h-12 w-12 text-gray-400" />
+            </div>
             <h3 className="text-lg font-medium text-gray-900 mb-2">
               {searchTerm || statusFilter !== 'all' ? 'No events match your criteria' : 'No events created yet'}
             </h3>
@@ -391,7 +328,7 @@ export const EventManagementPage = () => {
                 </Button>
               )}
               {hasPermission('canCreateEvents') && (
-                <Button asChild>
+                <Button asChild className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
                   <Link to="/admin/events/create">
                     <Icon name="Plus" className="mr-2 h-4 w-4" />
                     Create Event
@@ -410,7 +347,7 @@ export const EventManagementPage = () => {
         title="Delete Event"
         description="Are you sure you want to delete this event? This action cannot be undone and will cancel all registrations."
         onConfirm={() => deletingEventId && handleDelete(deletingEventId)}
-        loading={isDeleting}
+        loading={isDeleting || isDeletingImages}
         variant="destructive"
         confirmText="Delete Event"
       />

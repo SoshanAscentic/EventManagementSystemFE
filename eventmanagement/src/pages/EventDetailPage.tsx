@@ -1,3 +1,4 @@
+//src/pages/EventDetailPage.tsx
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -5,21 +6,21 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Avatar, AvatarFallback, AvatarImage, Badge, Icon, Spinner } from '@/components/atoms'
 import { EventCard } from '@/components/organisms'
 import { useGetEventByIdQuery, useGetUpcomingEventsQuery } from '@/features/events/api/eventsApi'
-import { useRegisterForEventMutation } from '@/features/registrations/api/registrationsApi'
+import { useRegisterForEventMutation, useCancelRegistrationMutation } from '@/features/registrations/api/registrationsApi'
 import { useAuth } from '@/shared/hooks/useAuth'
+import { useRegistrationStatus } from '@/shared/hooks/useRegistrationStatus'
 import { formatEventDateTime, formatRelativeTime } from '@/shared/utils/formatters'
 import { useState } from 'react'
+import { ConfirmDialog } from '@/shared/components/ConfirmDialog'
 
-// Mock agenda data (this would typically come from the backend)
+// Mock agenda data
 const getMockAgenda = (startDateTime: string, endDateTime: string) => {
   const start = new Date(startDateTime)
   const end = new Date(endDateTime)
   
-  // Generate a realistic agenda based on event duration
   const duration = (end.getTime() - start.getTime()) / (1000 * 60 * 60) // hours
   
   if (duration <= 4) {
-    // Short event (half day or less)
     return [
       { time: start.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }), title: 'Registration & Welcome', speaker: 'Event Staff' },
       { time: new Date(start.getTime() + 30 * 60000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }), title: 'Opening Session', speaker: 'Keynote Speaker' },
@@ -28,7 +29,6 @@ const getMockAgenda = (startDateTime: string, endDateTime: string) => {
       { time: end.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }), title: 'Closing & Networking', speaker: '' },
     ]
   } else {
-    // Full day event
     return [
       { time: start.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }), title: 'Registration & Coffee', speaker: 'Event Staff' },
       { time: new Date(start.getTime() + 30 * 60000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }), title: 'Opening Keynote', speaker: 'Keynote Speaker' },
@@ -47,9 +47,17 @@ export const EventDetailPage = () => {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { isAuthenticated, user } = useAuth()
-  const [isRegistering, setIsRegistering] = useState(false)
+  const [showCancelDialog, setShowCancelDialog] = useState(false)
 
   const eventId = id ? parseInt(id) : 0
+
+  // Use the reliable registration status hook
+  const { 
+    isRegistered, 
+    registration, 
+    canCancel, 
+    isLoading: registrationLoading 
+  } = useRegistrationStatus(eventId)
 
   // Fetch the specific event
   const { 
@@ -72,8 +80,9 @@ export const EventDetailPage = () => {
     skip: !eventData?.data?.categoryId,
   })
 
-  // Registration mutation
-  const [registerForEvent] = useRegisterForEventMutation()
+  // Registration and cancellation mutations
+  const [registerForEvent, { isLoading: isRegistering }] = useRegisterForEventMutation()
+  const [cancelRegistration, { isLoading: isCancelling }] = useCancelRegistrationMutation()
 
   const event = eventData?.data
   const relatedEvents = relatedEventsData?.data?.filter(e => e.id !== eventId) || []
@@ -91,30 +100,36 @@ export const EventDetailPage = () => {
 
     if (!event || event.remainingCapacity === 0) return
 
-    setIsRegistering(true)
     try {
       await registerForEvent({
         eventId: event.id,
         notes: undefined
       }).unwrap()
       
-      // Refetch event data to update registration status
-      refetchEvent()
-      
-      // Show success message or redirect
-      navigate(`/events/${eventId}`, { 
-        state: { message: 'Registration successful!' }
-      })
+      // The cache will be invalidated automatically
+      // Registration status will refresh with updated data
     } catch (error: any) {
       console.error('Registration failed:', error)
-      // Handle error (you could show a toast notification here)
-    } finally {
-      setIsRegistering(false)
     }
   }
 
   const handleRelatedEventRegister = (relatedEventId: number) => {
-    navigate(`/events/${relatedEventId}/register`)
+    navigate(`/events/${relatedEventId}`)
+  }
+
+  const handleCancelRegistration = async () => {
+    if (!registration) return
+    
+    try {
+      await cancelRegistration({
+        registrationId: registration.id,
+        reason: 'User requested cancellation from event detail page'
+      }).unwrap()
+      setShowCancelDialog(false)
+      // The cache will be invalidated automatically
+    } catch (error) {
+      console.error('Failed to cancel registration:', error)
+    }
   }
 
   // Loading state
@@ -158,6 +173,20 @@ export const EventDetailPage = () => {
     )
   }
 
+  const constructImageUrl = (imageUrl: string | null | undefined): string => {
+    if (!imageUrl) {
+      return 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&h=400&fit=crop'
+    }
+    
+    if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+      return imageUrl
+    }
+    
+    const cleanPath = imageUrl.startsWith('/') ? imageUrl.slice(1) : imageUrl
+    const baseUrl = import.meta.env.VITE_API_URL || 'https://localhost:7026'
+    return `${baseUrl}/${cleanPath}`
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-indigo-50/20">
       {/* Background Elements */}
@@ -184,7 +213,7 @@ export const EventDetailPage = () => {
             <div className="relative animate-fade-in" style={{animationDelay: '0.1s'}}>
               <div className="relative overflow-hidden rounded-2xl shadow-2xl">
                 <img
-                  src={event.primaryImageUrl || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&h=400&fit=crop'}
+                  src={constructImageUrl(event.primaryImageUrl)}
                   alt={event.title}
                   className="w-full h-64 md:h-80 object-cover"
                 />
@@ -196,6 +225,12 @@ export const EventDetailPage = () => {
                   <Badge variant="outline" className="bg-white/90 backdrop-blur-sm border-white/30 text-gray-700 shadow-lg">
                     {event.eventType}
                   </Badge>
+                  {isRegistered && (
+                    <Badge className="bg-blue-500/90 text-white backdrop-blur-sm shadow-lg border border-blue-400/30">
+                      <Icon name="Check" className="mr-1 h-3 w-3" />
+                      You're Registered
+                    </Badge>
+                  )}
                 </div>
                 <div className="absolute bottom-6 left-6 right-6">
                   <h1 className="text-3xl md:text-4xl font-bold text-white mb-3 drop-shadow-lg">
@@ -337,12 +372,17 @@ export const EventDetailPage = () => {
                             {event.isRegistrationOpen ? 'Open' : 'Closed'}
                           </Badge>
                         </div>
-                        {event.isUserRegistered && (
+                        {isRegistered && (
                           <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
                             <p className="text-green-800 font-medium flex items-center">
                               <Icon name="CheckCircle" className="mr-2 h-4 w-4" />
                               You are registered for this event!
                             </p>
+                            {registration && (
+                              <p className="text-green-600 text-sm mt-1">
+                                Registered on {new Date(registration.registeredAt).toLocaleDateString()}
+                              </p>
+                            )}
                           </div>
                         )}
                       </div>
@@ -432,7 +472,7 @@ export const EventDetailPage = () => {
               <Card className="bg-white/90 backdrop-blur-sm shadow-xl border border-white/20 sticky top-8 hover:shadow-2xl transition-all duration-300">
                 <CardHeader>
                   <CardTitle className="text-center text-xl">
-                    {event.isUserRegistered ? 'Registration Confirmed' : 'Register for Event'}
+                    {isRegistered ? 'Registration Confirmed' : 'Register for Event'}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
@@ -469,19 +509,47 @@ export const EventDetailPage = () => {
                     ></div>
                   </div>
 
-                  {event.isUserRegistered ? (
+                  {/* Registration Actions */}
+                  {registrationLoading ? (
+                    <div className="flex items-center justify-center py-4">
+                      <Icon name="Loader2" className="h-6 w-6 animate-spin text-blue-600" />
+                      <span className="ml-2 text-gray-600">Checking registration status...</span>
+                    </div>
+                  ) : isRegistered ? (
                     <div className="space-y-3">
                       <div className="bg-green-50 border-2 border-green-200 rounded-xl p-4 text-center">
                         <Icon name="CheckCircle" className="h-8 w-8 text-green-600 mx-auto mb-2" />
                         <p className="text-green-800 font-semibold">You're registered!</p>
                         <p className="text-green-600 text-sm mt-1">Event details have been sent to your email</p>
                       </div>
-                      <Button variant="outline" className="w-full bg-white hover:bg-gray-50 border-gray-200" asChild>
-                        <Link to="/registrations">
-                          <Icon name="Calendar" className="mr-2 h-4 w-4" />
-                          View My Registrations
-                        </Link>
-                      </Button>
+                      
+                      <div className="flex gap-2">
+                        <Button variant="outline" className="flex-1 bg-white hover:bg-gray-50 border-gray-200" asChild>
+                          <Link to="/registrations">
+                            <Icon name="Calendar" className="mr-2 h-4 w-4" />
+                            My Registrations
+                          </Link>
+                        </Button>
+                        
+                        <Button
+                          variant="outline"
+                          className="flex-1 bg-white hover:bg-red-50 border-red-200 hover:border-red-300 text-red-600"
+                          onClick={() => setShowCancelDialog(true)}
+                          disabled={isCancelling}
+                        >
+                          {isCancelling ? (
+                            <>
+                              <Icon name="Loader2" className="mr-2 h-4 w-4 animate-spin" />
+                              Cancelling...
+                            </>
+                          ) : (
+                            <>
+                              <Icon name="XCircle" className="mr-2 h-4 w-4" />
+                              Cancel Registration
+                            </>
+                          )}
+                        </Button>
+                      </div>
                     </div>
                   ) : (
                     <Button 
@@ -601,6 +669,18 @@ export const EventDetailPage = () => {
           </div>
         </div>
       </div>
+      
+      {/* Cancel Registration Dialog */}
+      <ConfirmDialog
+        open={showCancelDialog}
+        onOpenChange={setShowCancelDialog}
+        title="Cancel Registration"
+        description="Are you sure you want to cancel your registration for this event? This action cannot be undone."
+        onConfirm={handleCancelRegistration}
+        loading={isCancelling}
+        variant="destructive"
+        confirmText="Cancel Registration"
+      />
     </div>
   )
 }

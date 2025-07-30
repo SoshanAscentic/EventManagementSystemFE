@@ -14,7 +14,7 @@ export interface RegistrationDto {
   userEmail: string
   registeredAt: string
   cancelledAt?: string
-  status: 'Active' | 'Cancelled' | 'Attended'
+  status: 'Registered' | 'Cancelled' | 'Attended'
   notes?: string
   attended?: boolean
   isActive: boolean
@@ -60,9 +60,11 @@ export const registrationsApi = baseApi.injectEndpoints({
         method: 'POST',
         body: data,
       }),
-      invalidatesTags: [
+      invalidatesTags: (result, error, { eventId }) => [
         { type: 'Registration', id: 'LIST' },
         { type: 'Event', id: 'LIST' },
+        { type: 'Event', id: eventId }, // Invalidate the specific event
+        { type: 'Event', id: 'UPCOMING' },
       ],
     }),
 
@@ -72,10 +74,16 @@ export const registrationsApi = baseApi.injectEndpoints({
         method: 'DELETE',
         body: { reason },
       }),
-      invalidatesTags: [
-        { type: 'Registration', id: 'LIST' },
-        { type: 'Event', id: 'LIST' },
-      ],
+      invalidatesTags: (result, error, { registrationId }) => {
+        // We need to find which event this registration belongs to
+        // Since we don't have eventId in the request, we'll invalidate all events
+        return [
+          { type: 'Registration', id: 'LIST' },
+          { type: 'Registration', id: registrationId },
+          { type: 'Event', id: 'LIST' },
+          { type: 'Event', id: 'UPCOMING' },
+        ]
+      },
     }),
 
     getMyRegistrations: builder.query<PagedResponse<RegistrationDto>, MyRegistrationsParams>({
@@ -93,7 +101,13 @@ export const registrationsApi = baseApi.injectEndpoints({
           params: transformRegistrationParams(defaultParams),
         }
       },
-      providesTags: [{ type: 'Registration', id: 'LIST' }],
+      providesTags: (result) =>
+        result?.success
+          ? [
+              ...result.data.items.map(({ id }) => ({ type: 'Registration' as const, id })),
+              { type: 'Registration', id: 'LIST' },
+            ]
+          : [{ type: 'Registration', id: 'LIST' }],
     }),
 
     // ===== ADMIN OPERATIONS =====
