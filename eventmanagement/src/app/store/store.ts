@@ -3,6 +3,7 @@ import { setupListeners } from '@reduxjs/toolkit/query'
 import { baseApi } from '../api/baseApi'
 import authSlice from '../slices/authSlice'
 import notificationSlice from '@/features/notifications/notificationSlice'
+import { addNotification, markAsRead, markAllAsRead, removeNotification } from '@/features/notifications/notificationSlice'
 
 export const store = configureStore({
   reducer: {

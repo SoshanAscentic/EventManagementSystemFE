@@ -138,12 +138,6 @@ export const EventCard = ({ event, showActions = true, onRegister, onDelete, var
     setImageLoading(false)
   }
 
-  // Debug remainingCapacity
-  console.log(`EventCard Debug - Event ID: ${event.id}, Title: ${event.title}`)
-  console.log(`Capacity: ${event.capacity}, Current: ${event.currentRegistrations}, Remaining: ${event.remainingCapacity}`)
-  console.log(`Calculated remaining: ${event.capacity - event.currentRegistrations}`)
-  console.log(`Remaining capacity type: ${typeof event.remainingCapacity}, value: ${event.remainingCapacity}`)
-
   // Compact variant for EventDetailPage related events
   if (variant === 'compact') {
     return (

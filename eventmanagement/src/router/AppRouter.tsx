@@ -1,4 +1,3 @@
-// src/router/AppRouter.tsx
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { RootLayout } from '@/layouts/RootLayout'
 import { AuthLayout } from '@/layouts/AuthLayout'
@@ -20,6 +19,7 @@ import { CreateEventPage } from '@/pages/CreateEventPage'
 import { EventEditPage } from '@/pages/EventEditPage'
 import { CategoriesManagementPage } from '@/pages/CategoriesManagementPage'
 import { CreateCategoryPage } from '@/pages/CreateCategoryPage'
+import { UserManagementPage } from '@/pages/UserManagementPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { UnauthorizedPage } from '@/pages/UnauthorizedPage'
 import { CategoriesPage } from '@/pages/CategoriesPage'
@@ -90,8 +90,10 @@ export const AppRouter = () => {
           <Route path="categories" element={<CategoriesManagementPage />} />
           <Route path="categories/create" element={<CreateCategoryPage />} />
           
+          {/* User Management Routes */}
+          <Route path="users" element={<UserManagementPage />} />
+          
           {/* Future routes */}
-          {/* <Route path="users" element={<UserManagementPage />} /> */}
           {/* <Route path="analytics" element={<AnalyticsPage />} /> */}
         </Route>
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -7,7 +7,6 @@ import { EventCard } from '@/components/organisms'
 import { Icon, Badge, Spinner } from '@/components/atoms'
 import { useGetEventsQuery } from '@/features/events/api/eventsApi'
 import { useGetActiveCategoriesQuery } from '@/features/categories/api/categoriesApi'
-import { useDebounce } from '@/shared/hooks/useDebounce'
 import { EventDto } from '@/shared/types/domain'
 import { EVENT_TYPES } from '@/shared/utils/constants'
 
@@ -15,7 +14,8 @@ export const EventsPage = () => {
   const [searchParams, setSearchParams] = useSearchParams()
   
   // State for filters
-  const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '')
+  const [searchInput, setSearchInput] = useState(searchParams.get('search') || '') // Input field state
+  const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '') // Actual search term sent to API
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | undefined>(
     searchParams.get('categoryId') ? parseInt(searchParams.get('categoryId')!) : undefined
   )
@@ -29,9 +29,6 @@ export const EventsPage = () => {
   const [currentPage, setCurrentPage] = useState<number>(
     parseInt(searchParams.get('page') || '1')
   )
-
-  // Debounce search term to avoid too many API calls
-  const debouncedSearchTerm = useDebounce(searchTerm, 300)
 
   // Fetch categories for filter dropdown
   const { 
@@ -48,13 +45,17 @@ export const EventsPage = () => {
   } = useGetEventsQuery({
     pageNumber: currentPage,
     pageSize: 12,
-    searchTerm: debouncedSearchTerm || undefined,
+    searchTerm: searchTerm || undefined,
     categoryId: selectedCategoryId,
     eventType: selectedEventType,
     sortBy: sortBy as any,
     Ascending: ascending,
   }, {
-    refetchOnMountOrArgChange: true,
+    // Improved caching
+    refetchOnMountOrArgChange: false,
+    refetchOnFocus: false,
+    refetchOnReconnect: false,
+    keepUnusedDataFor: 60,
   })
 
   const categories = categoriesData?.data || []
@@ -64,11 +65,31 @@ export const EventsPage = () => {
   const hasNextPage = eventsData?.data?.hasNextPage || false
   const hasPreviousPage = eventsData?.data?.hasPreviousPage || false
 
+  // Handle search execution
+  const executeSearch = useCallback(() => {
+    setSearchTerm(searchInput.trim())
+    setCurrentPage(1) // Reset to first page when searching
+  }, [searchInput])
+
+  // Handle Enter key press - RENAME this function
+  const handleKeyPress = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      executeSearch()
+    }
+  }, [executeSearch])
+
+  // Handle clear search
+  const handleClearSearch = useCallback(() => {
+    setSearchInput('')
+    setSearchTerm('')
+    setCurrentPage(1)
+  }, [])
+
   // Update URL params when filters change
   useEffect(() => {
     const params = new URLSearchParams()
     
-    if (debouncedSearchTerm) params.set('search', debouncedSearchTerm)
+    if (searchTerm) params.set('search', searchTerm)
     if (selectedCategoryId) params.set('categoryId', selectedCategoryId.toString())
     if (selectedEventType) params.set('eventType', selectedEventType)
     if (sortBy !== 'startDateTime') params.set('sortBy', sortBy)
@@ -76,7 +97,7 @@ export const EventsPage = () => {
     if (currentPage > 1) params.set('page', currentPage.toString())
 
     setSearchParams(params, { replace: true })
-  }, [debouncedSearchTerm, selectedCategoryId, selectedEventType, sortBy, ascending, currentPage, setSearchParams])
+  }, [searchTerm, selectedCategoryId, selectedEventType, sortBy, ascending, currentPage, setSearchParams])
 
   // Calculate statistics from current data
   const statistics = useMemo(() => {
@@ -94,6 +115,7 @@ export const EventsPage = () => {
 
   // Clear all filters
   const clearAllFilters = () => {
+    setSearchInput('')
     setSearchTerm('')
     setSelectedCategoryId(undefined)
     setSelectedEventType(undefined)
@@ -228,13 +250,33 @@ export const EventsPage = () => {
             {/* Search */}
             <div className="md:col-span-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">Search Events</label>
-              <SearchBox
-                placeholder="Search by title or description..."
-                value={searchTerm}
-                onChange={setSearchTerm}
-                onClear={() => setSearchTerm('')}
-                className="w-full"
-              />
+              <div className="flex gap-2">
+                <SearchBox
+                  placeholder="Search by title or description..."
+                  value={searchInput}
+                  onChange={setSearchInput}
+                  onKeyPress={handleKeyPress}
+                  className="flex-1"
+                />
+                <Button
+                  onClick={executeSearch}
+                  size="sm"
+                  className="px-3"
+                  disabled={eventsLoading}
+                >
+                  <Icon name="Search" className="h-4 w-4" />
+                </Button>
+                {searchTerm && (
+                  <Button
+                    onClick={handleClearSearch}
+                    variant="outline"
+                    size="sm"
+                    className="px-3"
+                  >
+                    <Icon name="X" className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
             </div>
             
             {/* Category Filter */}
@@ -242,7 +284,10 @@ export const EventsPage = () => {
               <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
               <Select 
                 value={selectedCategoryId?.toString() || 'all'} 
-                onValueChange={(value) => setSelectedCategoryId(value === 'all' ? undefined : parseInt(value))}
+                onValueChange={(value) => {
+                  setSelectedCategoryId(value === 'all' ? undefined : parseInt(value))
+                  setCurrentPage(1)
+                }}
               >
                 <SelectTrigger className="w-full bg-white border-gray-200 hover:border-blue-300 transition-colors">
                   <SelectValue placeholder="All Categories" />
@@ -263,7 +308,10 @@ export const EventsPage = () => {
               <label className="block text-sm font-medium text-gray-700 mb-2">Event Type</label>
               <Select 
                 value={selectedEventType || 'all'} 
-                onValueChange={(value) => setSelectedEventType(value === 'all' ? undefined : value)}
+                onValueChange={(value) => {
+                  setSelectedEventType(value === 'all' ? undefined : value)
+                  setCurrentPage(1)
+                }}
               >
                 <SelectTrigger className="w-full bg-white border-gray-200 hover:border-blue-300 transition-colors">
                   <SelectValue placeholder="All Types" />
@@ -288,6 +336,7 @@ export const EventsPage = () => {
                   const [field, order] = value.split('-')
                   setSortBy(field)
                   setAscending(order === 'asc')
+                  setCurrentPage(1)
                 }}
               >
                 <SelectTrigger className="w-full bg-white border-gray-200 hover:border-blue-300 transition-colors">
@@ -312,6 +361,9 @@ export const EventsPage = () => {
                 Showing <span className="text-blue-600 font-semibold">{events.length}</span> of <span className="font-semibold">{statistics.totalEvents.toLocaleString()}</span> events
                 {currentPage > 1 && (
                   <span className="text-gray-500"> (Page {currentPage} of {totalPages})</span>
+                )}
+                {searchTerm && (
+                  <span className="text-gray-500"> matching "{searchTerm}"</span>
                 )}
               </p>
               {hasActiveFilters && (

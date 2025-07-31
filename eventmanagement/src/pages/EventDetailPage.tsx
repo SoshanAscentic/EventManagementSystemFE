@@ -10,8 +10,9 @@ import { useRegisterForEventMutation, useCancelRegistrationMutation } from '@/fe
 import { useAuth } from '@/shared/hooks/useAuth'
 import { useRegistrationStatus } from '@/shared/hooks/useRegistrationStatus'
 import { formatEventDateTime, formatRelativeTime } from '@/shared/utils/formatters'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ConfirmDialog } from '@/shared/components/ConfirmDialog'
+import { useEventSignalR } from '@/shared/hooks/useEventSignalR'
 
 // Mock agenda data
 const getMockAgenda = (startDateTime: string, endDateTime: string) => {
@@ -51,6 +52,8 @@ export const EventDetailPage = () => {
 
   const eventId = id ? parseInt(id) : 0
 
+  // ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL LOGIC
+  
   // Use the reliable registration status hook
   const { 
     isRegistered, 
@@ -69,26 +72,38 @@ export const EventDetailPage = () => {
     skip: !eventId,
   })
 
-  // Fetch related events (from same category)
+  // Fetch related events (from same category) - this hook was being called conditionally
   const { 
     data: relatedEventsData, 
     isLoading: relatedLoading 
   } = useGetUpcomingEventsQuery({
-    categoryId: eventData?.data?.categoryId,
+    categoryId: eventData?.data?.categoryId || 0, // Provide default value
     count: 3
   }, {
-    skip: !eventData?.data?.categoryId,
+    skip: !eventData?.data?.categoryId, // Keep the skip condition
   })
 
   // Registration and cancellation mutations
   const [registerForEvent, { isLoading: isRegistering }] = useRegisterForEventMutation()
   const [cancelRegistration, { isLoading: isCancelling }] = useCancelRegistrationMutation()
 
+  // Derived values after all hooks
   const event = eventData?.data
   const relatedEvents = relatedEventsData?.data?.filter(e => e.id !== eventId) || []
 
   // Generate mock agenda based on event times
   const agenda = event ? getMockAgenda(event.startDateTime, event.endDateTime) : []
+
+  // Add debug logging only here if needed
+  useEffect(() => {
+    if (event) {
+      console.log(`EventDetail Debug - Event ID: ${event.id}, Title: ${event.title}`)
+      console.log(`Capacity: ${event.capacity}, Current: ${event.currentRegistrations}, Remaining: ${event.remainingCapacity}`)
+    }
+  }, [event])
+
+  // Add SignalR integration for this event
+  useEventSignalR(eventId)
 
   const handleRegister = async () => {
     if (!isAuthenticated) {
@@ -132,6 +147,22 @@ export const EventDetailPage = () => {
     }
   }
 
+  const constructImageUrl = (imageUrl: string | null | undefined): string => {
+    if (!imageUrl) {
+      return 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&h=400&fit=crop'
+    }
+    
+    if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+      return imageUrl
+    }
+    
+    const cleanPath = imageUrl.startsWith('/') ? imageUrl.slice(1) : imageUrl
+    const baseUrl = import.meta.env.VITE_API_URL || 'https://localhost:7026'
+    return `${baseUrl}/${cleanPath}`
+  }
+
+  // NOW HANDLE CONDITIONAL RENDERING AFTER ALL HOOKS
+  
   // Loading state
   if (eventLoading) {
     return (
@@ -171,20 +202,6 @@ export const EventDetailPage = () => {
         </div>
       </div>
     )
-  }
-
-  const constructImageUrl = (imageUrl: string | null | undefined): string => {
-    if (!imageUrl) {
-      return 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&h=400&fit=crop'
-    }
-    
-    if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
-      return imageUrl
-    }
-    
-    const cleanPath = imageUrl.startsWith('/') ? imageUrl.slice(1) : imageUrl
-    const baseUrl = import.meta.env.VITE_API_URL || 'https://localhost:7026'
-    return `${baseUrl}/${cleanPath}`
   }
 
   return (

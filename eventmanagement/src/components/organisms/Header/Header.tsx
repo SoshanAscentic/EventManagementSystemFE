@@ -12,10 +12,11 @@ import {
 import { Avatar, AvatarFallback, AvatarImage, Badge, Icon } from '@/components/atoms'
 import { useAuth } from '@/shared/hooks/useAuth'
 import { useLogoutMutation } from '@/features/auth/api/authApi'
-import { useAppDispatch } from '@/app/hooks'
+import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { clearAuth } from '@/app/slices/authSlice'
 import { PermissionGuard } from '@/shared/components/PermissionGaurd'
 import { cn } from '@/lib/utils'
+import { NotificationPanel } from '@/features/notifications/components/NotificationPanel'
 
 export interface HeaderProps {
   className?: string
@@ -27,6 +28,8 @@ export const Header = ({ className }: HeaderProps) => {
   const { user, isAuthenticated, hasPermission } = useAuth()
   const [logout, { isLoading: isLoggingOut }] = useLogoutMutation()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [notificationOpen, setNotificationOpen] = useState(false)
+  const { unreadCount } = useAppSelector(state => state.notifications)
 
   const navigationItems = [
     { label: 'Events', href: '/events', icon: 'Calendar' as const },
@@ -37,12 +40,17 @@ export const Header = ({ className }: HeaderProps) => {
 
   const handleLogout = async () => {
     try {
-      await logout().unwrap()
+      // First clear the UI state
       dispatch(clearAuth())
-      navigate('/auth/login')
+      
+      // Then call the logout API (this will clear cookies)
+      await logout().unwrap()
+      
+      // Navigate to login
+      navigate('/')
     } catch (error) {
       console.error('Logout failed:', error)
-      // Clear auth state anyway on error
+      // Even if API fails, ensure we clear local state and redirect
       dispatch(clearAuth())
       navigate('/auth/login')
     }
@@ -92,16 +100,25 @@ export const Header = ({ className }: HeaderProps) => {
           <div className="flex items-center space-x-4">
             {isAuthenticated ? (
               <>
-                {/* Notifications */}
-                <Button variant="ghost" size="icon" className="relative">
-                  <Icon name="Bell" className="h-5 w-5" />
-                  <Badge 
-                    variant="destructive" 
-                    className="absolute -top-1 -right-1 h-5 w-5 p-0 text-xs"
-                  >
-                    3
-                  </Badge>
-                </Button>
+                {/* Notifications Dropdown */}
+                <DropdownMenu open={notificationOpen} onOpenChange={setNotificationOpen}>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="relative">
+                      <Icon name="Bell" className="h-5 w-5" />
+                      {unreadCount > 0 && (
+                        <Badge 
+                          variant="destructive" 
+                          className="absolute -top-1 -right-1 h-5 w-5 p-0 text-xs flex items-center justify-center"
+                        >
+                          {unreadCount > 99 ? '99+' : unreadCount}
+                        </Badge>
+                      )}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-96 p-0">
+                    <NotificationPanel />
+                  </DropdownMenuContent>
+                </DropdownMenu>
 
                 {/* User Menu */}
                 <DropdownMenu>

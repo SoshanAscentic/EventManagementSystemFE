@@ -36,7 +36,7 @@ export const getPermissions = (roles: string[]): UserPermissions => {
 
 export const useAuth = () => {
   const dispatch = useAppDispatch()
-  const { user, isAuthenticated, isLoading: authLoading } = useAppSelector((state: RootState) => state.auth)
+  const { user, isAuthenticated, isLoading: authLoading, isInitialized } = useAppSelector((state: RootState) => state.auth)
   
   const { 
     data, 
@@ -44,7 +44,11 @@ export const useAuth = () => {
     error,
     refetch 
   } = useGetCurrentUserQuery(undefined, {
-    skip: isAuthenticated || !authLoading, // Skip if already authenticated or not initially loading
+    // Only skip if we already have a user OR if we've completed initialization
+    skip: isAuthenticated || isInitialized,
+    // Disable automatic refetching on focus to prevent infinite loading
+    refetchOnFocus: false,
+    refetchOnReconnect: false,
   })
 
   // Update auth state when query succeeds
@@ -52,11 +56,11 @@ export const useAuth = () => {
     if (data?.success && data.data && !isAuthenticated) {
       console.log('Setting auth from API response:', data.data)
       dispatch(setAuth(data.data))
-    } else if (error && authLoading) {
+    } else if (error && !isAuthenticated && !isInitialized) {
       console.log('Auth query failed, clearing auth state')
       dispatch(clearAuth())
     }
-  }, [data, error, dispatch, isAuthenticated, authLoading])
+  }, [data, error, dispatch, isAuthenticated, isInitialized])
 
   // Get roles from user object
   const roles = user?.roles || []
@@ -72,7 +76,9 @@ export const useAuth = () => {
     [permissions]
   )
 
-  const isLoading = authLoading || queryLoading
+  // Show loading during initial auth check OR during any auth-related API calls
+  const isLoading = (!isInitialized && (authLoading || queryLoading)) || 
+                   (isInitialized && queryLoading && !isAuthenticated)
 
   return {
     user,

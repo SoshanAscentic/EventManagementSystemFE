@@ -8,6 +8,7 @@ interface Notification {
   timestamp: number
   read: boolean
   data?: any
+  actionUrl?: string
 }
 
 interface NotificationState {
@@ -26,21 +27,30 @@ const notificationSlice = createSlice({
   name: 'notifications',
   initialState,
   reducers: {
-    addNotification: (state, action: PayloadAction<Omit<Notification, 'id' | 'timestamp' | 'read'>>) => {
-      const notification: Notification = {
+    addNotification: (state, action: PayloadAction<Notification>) => {
+      const notification = {
         ...action.payload,
-        id: Date.now().toString(),
-        timestamp: Date.now(),
+        id: action.payload.id || Date.now().toString(),
+        timestamp: action.payload.timestamp || Date.now(),
         read: false,
       }
+
+      // Add to beginning of array (newest first)
       state.notifications.unshift(notification)
+
+      // Limit to last 50 notifications
+      if (state.notifications.length > 50) {
+        state.notifications = state.notifications.slice(0, 50)
+      }
+
+      // Update unread count
       state.unreadCount += 1
     },
     markAsRead: (state, action: PayloadAction<string>) => {
       const notification = state.notifications.find(n => n.id === action.payload)
       if (notification && !notification.read) {
         notification.read = true
-        state.unreadCount -= 1
+        state.unreadCount = Math.max(0, state.unreadCount - 1)
       }
     },
     markAllAsRead: (state) => {

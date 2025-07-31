@@ -15,21 +15,10 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   const { isAuthenticated, user, isLoading } = useAuth();
   const location = useLocation();
   
-  // Only call getCurrentUser if we're not authenticated
-  const { refetch, isFetching } = useGetCurrentUserQuery(undefined, {
-    skip: isAuthenticated, // Skip if already authenticated
-  });
-
-  useEffect(() => {
-    // Try to verify auth if we're not authenticated and not already loading
-    if (!isAuthenticated && !isLoading && !isFetching) {
-      console.log('ProtectedRoute: Attempting to verify authentication...')
-      refetch();
-    }
-  }, [isAuthenticated, isLoading, isFetching, refetch]);
-
-  // Show loading screen during auth verification
-  if (isLoading || isFetching) {
+  // Don't make additional API calls here - let useAuth handle it
+  
+  // Show loading screen only during initial auth verification
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -58,8 +47,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     }
   }
 
-  // User is authenticated and has required roles
   return <>{children}</>;
 };
 
-export default ProtectedRoute; 
+export default ProtectedRoute;
