@@ -302,14 +302,6 @@ export const CategoriesPage = () => {
                             )}
                           </div>
                         </div>
-
-                        {/* Created Date */}
-                        <div className="mt-4 pt-3 border-t border-gray-100">
-                          <div className="flex items-center text-xs text-gray-500">
-                            <Icon name="Calendar" className="mr-1 h-3 w-3" />
-                            Created {new Date(category.createdAt).toLocaleDateString()}
-                          </div>
-                        </div>
                       </CardContent>
                     </Card>
                   </div>

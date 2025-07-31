@@ -1,4 +1,3 @@
-//src/shared/hooks/useRegistrationStatus.ts
 import { useMemo } from 'react'
 import { useGetMyRegistrationsQuery } from '@/features/registrations/api/registrationsApi'
 import { useAuth } from './useAuth'

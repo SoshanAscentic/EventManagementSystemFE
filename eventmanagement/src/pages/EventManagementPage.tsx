@@ -106,6 +106,13 @@ export const EventManagementPage = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
+  // Add helper function to check if event is completed
+  const isEventCompleted = (event: any) => {
+    const now = new Date()
+    const endDate = new Date(event.endDateTime)
+    return endDate < now
+  }
+
   // Loading state
   if (isLoading) {
     return (
@@ -231,6 +238,7 @@ export const EventManagementPage = () => {
                   showActions={true}
                   onRegister={() => {}} // Not used in admin variant
                   onDelete={hasPermission('canDeleteEvents') ? (eventId) => setDeletingEventId(eventId) : undefined}
+                  disableEdit={isEventCompleted(event)} // Add this prop
                 />
               </div>
             ))}

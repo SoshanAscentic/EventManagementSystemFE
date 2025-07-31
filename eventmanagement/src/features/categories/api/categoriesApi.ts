@@ -10,19 +10,24 @@ export interface Category {
   eventCount?: number
   createdAt: string
   updatedAt: string
+  color?: string
+  icon?: string
 }
 
 export interface GetCategoriesParams {
-  page?: number
+  pageNumber?: number
   pageSize?: number
-  search?: string
+  searchTerm?: string
   isActive?: boolean
+  ascending?: boolean
 }
 
 export interface CreateCategoryRequest {
   name: string
   description?: string
   isActive?: boolean
+  color?: string
+  icon?: string
 }
 
 export interface UpdateCategoryRequest extends CreateCategoryRequest {
@@ -48,16 +53,20 @@ export const categoriesApi = baseApi.injectEndpoints({
     // ===== READ OPERATIONS =====
     
     getCategories: builder.query<ApiResponse<PagedResponse<Category>>, GetCategoriesParams>({
-      query: ({ page = 1, pageSize = 10, search, isActive }) => ({
+      query: ({ pageNumber = 1, pageSize = 10, searchTerm, isActive, ascending = true }) => ({
         url: '/categories',
-        params: {
-          page,
+        params: cleanParams({
+          pageNumber,
           pageSize,
-          ...(search && { search }),
-          ...(isActive !== undefined && { isActive }),
-        },
+          searchTerm,
+          isActive,
+          ascending,
+        }),
       }),
-      providesTags: ['Category'],
+      providesTags: (result) => [
+        { type: 'Category', id: 'LIST' },
+        ...(result?.data?.data || []).map(({ id }) => ({ type: 'Category' as const, id })),
+      ],
     }),
 
     // For compatibility with existing frontend code
@@ -69,9 +78,14 @@ export const categoriesApi = baseApi.injectEndpoints({
       providesTags: [{ type: 'Category', id: 'ACTIVE' }],
     }),
 
-    // ===== CREATE/UPDATE OPERATIONS (Admin only) =====
+    getCategory: builder.query<ApiResponse<Category>, number>({
+      query: (id) => `/categories/${id}`,
+      providesTags: (result, error, id) => [{ type: 'Category', id }],
+    }),
 
-    createCategory: builder.mutation<ApiResponse<CategoryDto>, CreateCategoryRequest>({
+    // ===== CREATE/UPDATE/DELETE OPERATIONS (Admin only) =====
+
+    createCategory: builder.mutation<ApiResponse<Category>, CreateCategoryRequest>({
       query: (categoryData) => ({
         url: '/categories',
         method: 'POST',
@@ -82,10 +96,45 @@ export const categoriesApi = baseApi.injectEndpoints({
         { type: 'Category', id: 'ACTIVE' },
       ],
     }),
-    
-    getCategory: builder.query<ApiResponse<Category>, number>({
-      query: (id) => `/categories/${id}`,
-      providesTags: (result, error, id) => [{ type: 'Category', id }],
+
+    updateCategory: builder.mutation<ApiResponse<Category>, UpdateCategoryRequest>({
+      query: ({ id, ...categoryData }) => ({
+        url: `/categories/${id}`,
+        method: 'PUT',
+        body: categoryData,
+      }),
+      invalidatesTags: (result, error, { id }) => [
+        { type: 'Category', id },
+        { type: 'Category', id: 'LIST' },
+        { type: 'Category', id: 'ACTIVE' },
+      ],
+    }),
+
+    deleteCategory: builder.mutation<ApiResponse<void>, number>({
+      query: (id) => ({
+        url: `/categories/${id}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: (result, error, id) => [
+        { type: 'Category', id },
+        { type: 'Category', id: 'LIST' },
+        { type: 'Category', id: 'ACTIVE' },
+      ],
+    }),
+
+    // ===== BULK OPERATIONS =====
+
+    toggleCategoryStatus: builder.mutation<ApiResponse<Category>, { id: number; isActive: boolean }>({
+      query: ({ id, isActive }) => ({
+        url: `/categories/${id}/toggle-status`,
+        method: 'PATCH',
+        body: { isActive },
+      }),
+      invalidatesTags: (result, error, { id }) => [
+        { type: 'Category', id },
+        { type: 'Category', id: 'LIST' },
+        { type: 'Category', id: 'ACTIVE' },
+      ],
     }),
   }),
 })
@@ -95,6 +144,9 @@ export const categoriesApi = baseApi.injectEndpoints({
 export const {
   useGetCategoriesQuery,
   useGetActiveCategoriesQuery,
-  useCreateCategoryMutation,
   useGetCategoryQuery,
+  useCreateCategoryMutation,
+  useUpdateCategoryMutation,
+  useDeleteCategoryMutation,
+  useToggleCategoryStatusMutation,
 } = categoriesApi
