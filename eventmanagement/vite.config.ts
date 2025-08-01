@@ -11,6 +11,8 @@ export default defineConfig({
     },
   },
   server: {
+    port: 5173, // Make sure this matches your backend CORS configuration
+    host: true, // Allow access from network
     proxy: {
       '/notificationHub': {
         target: 'https://localhost:7026',

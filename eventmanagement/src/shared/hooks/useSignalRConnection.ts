@@ -8,7 +8,7 @@ export const useSignalRConnection = () => {
   const cleanupRef = useRef<(() => void) | null>(null)
 
   useEffect(() => {
-    // ✅ Only initialize if authenticated and not already initialized
+    // Only initialize if authenticated and not already initialized
     if (!isAuthenticated || !user || initializationRef.current) {
       return
     }
@@ -25,7 +25,7 @@ export const useSignalRConnection = () => {
       }
     }
 
-    // ✅ Small delay to ensure other initialization is complete
+    // Small delay to ensure other initialization is complete
     const timeoutId = setTimeout(initializeSignalR, 500)
 
     cleanupRef.current = () => {
@@ -36,7 +36,7 @@ export const useSignalRConnection = () => {
     }
 
     return cleanupRef.current
-  }, [isAuthenticated, user?.id]) // ✅ Add dependencies
+  }, [isAuthenticated, user?.id])
 
   // Cleanup on unmount
   useEffect(() => {

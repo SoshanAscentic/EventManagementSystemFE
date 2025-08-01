@@ -5,38 +5,97 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge, Icon } from '@/components/atoms'
 import { useAppSelector, useAppDispatch } from '@/app/hooks'
 import { markAsRead, markAllAsRead, removeNotification, addNotification } from '@/features/notifications/notificationSlice'
-import { getTokenFromCookie } from '@/shared/utils/cookies'
 import { signalRService } from '@/shared/lib/signalr'
+import { cn } from '@/lib/utils'
+
+interface NotificationTypeConfig {
+  icon: string
+  color: string
+  bgColor: string
+  borderColor: string
+  priority: number
+}
+
+const notificationTypeConfigs: Record<string, NotificationTypeConfig> = {
+  'success': {
+    icon: 'CheckCircle',
+    color: 'text-green-600',
+    bgColor: 'bg-green-50',
+    borderColor: 'border-green-200',
+    priority: 2
+  },
+  'warning': {
+    icon: 'AlertTriangle', 
+    color: 'text-yellow-600',
+    bgColor: 'bg-yellow-50',
+    borderColor: 'border-yellow-200',
+    priority: 3
+  },
+  'error': {
+    icon: 'AlertCircle',
+    color: 'text-red-600', 
+    bgColor: 'bg-red-50',
+    borderColor: 'border-red-200',
+    priority: 4
+  },
+  'info': {
+    icon: 'Info',
+    color: 'text-blue-600',
+    bgColor: 'bg-blue-50', 
+    borderColor: 'border-blue-200',
+    priority: 1
+  }
+}
+
+const eventTypeConfigs: Record<string, { emoji: string, description: string }> = {
+  'EventCreated': { emoji: '🎉', description: 'New event available' },
+  'EventUpdated': { emoji: '📝', description: 'Event details changed' },
+  'EventCancelled': { emoji: '❌', description: 'Event cancelled' },
+  'RegistrationConfirmed': { emoji: '✅', description: 'Registration confirmed' },
+  'RegistrationCancelled': { emoji: '🚫', description: 'Registration cancelled' },
+  'EventReminder': { emoji: '⏰', description: 'Event reminder' },
+  'EventCapacityReached': { emoji: '🏆', description: 'Event full' }
+}
 
 export const NotificationPanel = () => {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const { notifications, unreadCount, connectionStatus } = useAppSelector(state => state.notifications)
-  const [filter, setFilter] = useState<'all' | 'unread'>('all')
-  
-  // ✅ Get connection status directly from service
+  const [filter, setFilter] = useState<'all' | 'unread' | 'important'>('all')
   const [signalRStatus, setSignalRStatus] = useState(signalRService.connectionStatus)
 
-  // ✅ Update status periodically
+  // Update SignalR status periodically
   useEffect(() => {
     const interval = setInterval(() => {
       setSignalRStatus(signalRService.connectionStatus)
-    }, 1000)
+    }, 2000)
     
     return () => clearInterval(interval)
   }, [])
 
-  // Add debugging info
-  console.log('SignalR Status:', { 
-    connectionStatus, 
-    signalRStatus,
-    isConnectionReady: signalRService.isConnectionReady 
-  })
-  console.log('Notifications:', notifications)
-
-  const filteredNotifications = notifications.filter(notification => 
-    filter === 'all' || !notification.read
-  )
+  // Filter notifications based on selected filter
+  const filteredNotifications = notifications
+    .filter(notification => {
+      switch (filter) {
+        case 'unread':
+          return !notification.read
+        case 'important':
+          return ['error', 'warning'].includes(notification.type) && !notification.read
+        default:
+          return true
+      }
+    })
+    .sort((a, b) => {
+      // Sort by priority (errors first, then warnings, etc.) and then by timestamp
+      const aConfig = notificationTypeConfigs[a.type]
+      const bConfig = notificationTypeConfigs[b.type]
+      
+      if (aConfig && bConfig && aConfig.priority !== bConfig.priority) {
+        return bConfig.priority - aConfig.priority // Higher priority first
+      }
+      
+      return b.timestamp - a.timestamp // Newer first
+    })
 
   const handleMarkAsRead = (id: string) => {
     dispatch(markAsRead(id))
@@ -55,28 +114,37 @@ export const NotificationPanel = () => {
       dispatch(markAsRead(notification.id))
     }
 
+    // Navigate based on notification type and action URL
     if (notification.actionUrl) {
       navigate(notification.actionUrl)
     } else if (notification.data?.eventId) {
       navigate(`/events/${notification.data.eventId}`)
+    } else {
+      // Default navigation based on notification type
+      switch (notification.type) {
+        case 'RegistrationConfirmed':
+        case 'RegistrationCancelled':
+          navigate('/registrations')
+          break
+        default:
+          if (notification.data?.eventId) {
+            navigate(`/events/${notification.data.eventId}`)
+          }
+      }
     }
   }
 
-  const getNotificationIcon = (type: string) => {
-    switch (type) {
-      case 'success': return 'CheckCircle'
-      case 'warning': return 'AlertTriangle'
-      case 'error': return 'AlertCircle'
-      default: return 'Info'
-    }
+  const getNotificationIcon = (notification: any) => {
+    const config = notificationTypeConfigs[notification.type]
+    return config?.icon || 'Info'
   }
 
-  const getNotificationColor = (type: string) => {
-    switch (type) {
-      case 'success': return 'text-green-600'
-      case 'warning': return 'text-yellow-600'
-      case 'error': return 'text-red-600'
-      default: return 'text-blue-600'
+  const getNotificationStyles = (notification: any) => {
+    const config = notificationTypeConfigs[notification.type]
+    return {
+      color: config?.color || 'text-blue-600',
+      bgColor: config?.bgColor || 'bg-blue-50',
+      borderColor: config?.borderColor || 'border-blue-200'
     }
   }
 
@@ -95,208 +163,398 @@ export const NotificationPanel = () => {
   }
 
   const handleTestNotification = () => {
-    dispatch(addNotification({
-      id: Date.now().toString(),
-      type: 'info',
-      title: 'Test Notification',
-      message: 'This is a test notification',
-      timestamp: Date.now(),
-      read: false
-    }))
+    const testNotifications = [
+      {
+        id: `test-event-created-${Date.now()}`,
+        type: 'success',
+        title: '🎉 New Event Available',
+        message: 'A new workshop "Advanced React Patterns" has been created and is now open for registration.',
+        timestamp: Date.now(),
+        read: false,
+        data: { eventId: 123, eventTitle: 'Advanced React Patterns' },
+        actionUrl: '/events/123'
+      },
+      {
+        id: `test-registration-confirmed-${Date.now()}`,
+        type: 'success', 
+        title: '✅ Registration Confirmed',
+        message: 'Your registration for "JavaScript Conference 2025" has been confirmed. Event starts on Dec 15, 2025.',
+        timestamp: Date.now(),
+        read: false,
+        data: { eventId: 456, registrationId: 789 },
+        actionUrl: '/registrations'
+      },
+      {
+        id: `test-event-reminder-${Date.now()}`,
+        type: 'warning',
+        title: '⏰ Event Reminder', 
+        message: 'Reminder: "React Workshop" starts in 2 hours. Don\'t forget to join!',
+        timestamp: Date.now(),
+        read: false,
+        data: { eventId: 789, hoursUntilEvent: 2 }
+      }
+    ]
+
+    // Add a random test notification
+    const randomNotification = testNotifications[Math.floor(Math.random() * testNotifications.length)]
+    dispatch(addNotification(randomNotification))
   }
 
   const handleTestSignalR = async () => {
-    console.log('=== SIGNALR DEBUG TEST ===')
+    console.log('=== SIGNALR COMPREHENSIVE TEST ===')
     console.log('1. Connection status:', signalRStatus)
     console.log('2. Is connection ready:', signalRService.isConnectionReady)
-    console.log('3. Auth token available:', !!getTokenFromCookie('accessToken'))
     
     if (signalRService.isConnectionReady) {
-      console.log('4. SignalR is ready - testing features...')
-      
       try {
+        console.log('3. Testing all SignalR features...')
+        
         // Test user group joining
         await signalRService.joinUserGroup()
-        console.log('5. ✅ User group join successful')
+        console.log('✅ User group join successful')
         
         // Test notification reception
         await signalRService.testNotificationReception()
-        console.log('6. ✅ Test notification sent')
+        console.log('✅ Test notification sent')
         
-        // Add a manual test notification
+        // Add success notification
         dispatch(addNotification({
-          id: `test-${Date.now()}`,
+          id: `signalr-test-success-${Date.now()}`,
           type: 'success',
-          title: 'SignalR Test Successful',
-          message: 'Connection is working properly!',
+          title: '🔔 SignalR Test Successful',
+          message: 'All SignalR features are working properly! You should receive real-time notifications.',
           timestamp: Date.now(),
           read: false
         }))
         
       } catch (error) {
         console.error('SignalR test failed:', error)
+        dispatch(addNotification({
+          id: `signalr-test-error-${Date.now()}`,
+          type: 'error',
+          title: '❌ SignalR Test Failed',
+          message: `Connection test failed: ${error}. Please check your connection.`,
+          timestamp: Date.now(),
+          read: false
+        }))
       }
     } else {
-      console.log('4. SignalR not ready - attempting reconnection...')
+      console.log('3. SignalR not ready - attempting reconnection...')
       
       try {
         signalRService.reset()
         await new Promise(resolve => setTimeout(resolve, 1000))
         await signalRService.start()
-        console.log('5. ✅ Reconnection successful')
+        console.log('✅ Reconnection successful')
+        
+        dispatch(addNotification({
+          id: `signalr-reconnect-${Date.now()}`,
+          type: 'success',
+          title: '🔄 SignalR Reconnected',
+          message: 'Successfully reconnected to real-time notification service.',
+          timestamp: Date.now(),
+          read: false
+        }))
       } catch (error) {
-        console.error('5. ❌ Reconnection failed:', error)
+        console.error('❌ Reconnection failed:', error)
+        dispatch(addNotification({
+          id: `signalr-reconnect-error-${Date.now()}`,
+          type: 'error',
+          title: '🔌 SignalR Connection Failed',
+          message: `Failed to establish real-time connection: ${error}`,
+          timestamp: Date.now(),
+          read: false
+        }))
       }
     }
   }
 
-  // ✅ Determine connection status for UI
-  const isConnected = signalRStatus === 'connected'
-  const isConnecting = signalRStatus === 'connecting'
-
-  // ✅ Add method to request browser notification permission
   const requestNotificationPermission = async () => {
     if ('Notification' in window) {
       const permission = await Notification.requestPermission()
       console.log('Browser notification permission:', permission)
+      
+      dispatch(addNotification({
+        id: `permission-${Date.now()}`,
+        type: permission === 'granted' ? 'success' : 'warning',
+        title: '🔔 Browser Notifications',
+        message: permission === 'granted' 
+          ? 'Browser notifications enabled! You\'ll receive desktop alerts for important events.'
+          : 'Browser notifications disabled. Enable them in browser settings for desktop alerts.',
+        timestamp: Date.now(),
+        read: false
+      }))
+
+      // Test browser notification if granted
+      if (permission === 'granted') {
+        setTimeout(() => {
+          new Notification('EventHub Test', {
+            body: 'Browser notifications are working correctly!',
+            icon: '/favicon.ico'
+          })
+        }, 1000)
+      }
     }
   }
 
+  const isConnected = signalRStatus === 'connected'
+  const isConnecting = signalRStatus === 'connecting'
+
+  const importantCount = notifications.filter(n => !n.read && ['error', 'warning'].includes(n.type)).length
+
   return (
-    <Card className="w-96">
-      <CardHeader className="flex flex-row items-center justify-between">
+    <Card className="w-96 max-h-[600px] flex flex-col">
+      <CardHeader className="flex flex-row items-center justify-between pb-4">
         <CardTitle className="flex items-center">
           <Icon name="Bell" className="mr-2 h-5 w-5" />
           Notifications
+          
           {/* Connection status indicator */}
-          <div className={`ml-2 w-2 h-2 rounded-full ${
-            isConnected ? 'bg-green-500' : isConnecting ? 'bg-yellow-500' : 'bg-red-500'
-          }`} title={`SignalR: ${signalRStatus}`} />
-          {unreadCount > 0 && (
-            <Badge variant="destructive" className="ml-2">
-              {unreadCount}
-            </Badge>
-          )}
+          <div 
+            className={cn(
+              "ml-2 w-2 h-2 rounded-full transition-colors",
+              isConnected ? 'bg-green-500' : isConnecting ? 'bg-yellow-500 animate-pulse' : 'bg-red-500'
+            )} 
+            title={`SignalR: ${signalRStatus}`} 
+          />
+          
+          {/* Notification counts */}
+          <div className="flex gap-1 ml-2">
+            {unreadCount > 0 && (
+              <Badge variant="destructive" className="text-xs">
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </Badge>
+            )}
+            {importantCount > 0 && (
+              <Badge variant="outline" className="text-xs bg-orange-50 text-orange-700 border-orange-200">
+                {importantCount} urgent
+              </Badge>
+            )}
+          </div>
         </CardTitle>
         
-        <div className="flex gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setFilter(filter === 'all' ? 'unread' : 'all')}
-          >
-            {filter === 'all' ? 'Unread Only' : 'Show All'}
-          </Button>
+        {/* Controls */}
+        <div className="flex gap-1 flex-wrap">
+          {/* Filter buttons */}
+          <div className="flex gap-1">
+            <Button
+              variant={filter === 'all' ? 'default' : 'ghost'}
+              size="sm"
+              className="text-xs px-2"
+              onClick={() => setFilter('all')}
+            >
+              All
+            </Button>
+            <Button
+              variant={filter === 'unread' ? 'default' : 'ghost'}
+              size="sm"
+              className="text-xs px-2"
+              onClick={() => setFilter('unread')}
+            >
+              Unread {unreadCount > 0 && `(${unreadCount})`}
+            </Button>
+            <Button
+              variant={filter === 'important' ? 'default' : 'ghost'}
+              size="sm"
+              className="text-xs px-2"
+              onClick={() => setFilter('important')}
+            >
+              Important {importantCount > 0 && `(${importantCount})`}
+            </Button>
+          </div>
           
+          {/* Action buttons */}
           {unreadCount > 0 && (
-            <Button variant="ghost" size="sm" onClick={handleMarkAllAsRead}>
-              Mark All Read
+            <Button variant="ghost" size="sm" onClick={handleMarkAllAsRead} title="Mark all as read">
+              <Icon name="CheckCheck" className="h-3 w-3" />
             </Button>
           )}
-          <Button variant="outline" size="sm" onClick={handleTestNotification}>
-            Test
-          </Button>
-          <Button variant="outline" size="sm" onClick={handleTestSignalR}>
-            Test SignalR
-          </Button>
-          <Button variant="outline" size="sm" onClick={requestNotificationPermission}>
-            Enable Browser Notifications
-          </Button>
         </div>
       </CardHeader>
       
-      <CardContent className="max-h-96 overflow-y-auto">
+      <CardContent className="flex-1 overflow-y-auto">
+        {/* Connection Status Display */}
+        <div className="mb-4 p-3 bg-gray-50 rounded-lg text-xs border">
+          <div className="flex items-center justify-between mb-2">
+            <span className="font-medium">Real-time Status</span>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={handleTestSignalR} className="text-xs px-2 py-1">
+                Test
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleTestNotification} className="text-xs px-2 py-1">
+                Demo
+              </Button>
+              <Button variant="outline" size="sm" onClick={requestNotificationPermission} className="text-xs px-2 py-1">
+                🔔
+              </Button>
+            </div>
+          </div>
+          
+          <div className="space-y-1 text-xs">
+            <div className="flex justify-between">
+              <span>Connection:</span>
+              <span className={cn(
+                "font-mono font-medium",
+                isConnected ? 'text-green-600' : isConnecting ? 'text-yellow-600' : 'text-red-600'
+              )}>
+                {signalRStatus.toUpperCase()}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span>Service Ready:</span>
+              <span className="font-mono font-medium">
+                {signalRService.isConnectionReady ? 'YES' : 'NO'}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Notifications List */}
         {filteredNotifications.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
             <Icon name="Bell" className="mx-auto h-12 w-12 opacity-50 mb-4" />
-            <p>
+            <p className="font-medium mb-1">
               {filter === 'unread' 
                 ? 'No unread notifications' 
+                : filter === 'important'
+                ? 'No important notifications'
                 : 'No notifications to show'
+              }
+            </p>
+            <p className="text-xs text-gray-400">
+              {filter === 'all' 
+                ? 'When events happen, you\'ll see notifications here'
+                : 'Switch to "All" to see your notification history'
               }
             </p>
           </div>
         ) : (
           <div className="space-y-3">
-            {filteredNotifications.map(notification => (
-              <div
-                key={notification.id}
-                className={`p-4 rounded-lg border transition-all cursor-pointer hover:shadow-md ${
-                  notification.read 
-                    ? 'bg-gray-50 hover:bg-gray-100' 
-                    : 'bg-blue-50 border-blue-200 hover:bg-blue-100'
-                }`}
-                onClick={() => handleNotificationClick(notification)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault()
-                    handleNotificationClick(notification)
-                  }
-                }}
-                tabIndex={0}
-                role="button"
-                aria-label={`Notification: ${notification.title}`}
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex items-start space-x-3 flex-1">
-                    <Icon
-                      name={getNotificationIcon(notification.type) as any}
-                      className={`h-5 w-5 mt-0.5 ${getNotificationColor(notification.type)}`}
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <p className={`font-medium ${notification.read ? 'text-gray-700' : 'text-gray-900'}`}>
-                          {notification.title}
-                        </p>
-                        {!notification.read && (
-                          <div className="w-2 h-2 bg-blue-600 rounded-full ml-2 flex-shrink-0" />
-                        )}
+            {filteredNotifications.map(notification => {
+              const styles = getNotificationStyles(notification)
+              const eventConfig = eventTypeConfigs[notification.data?.notificationType] || 
+                                eventTypeConfigs[notification.title?.split(' ')[0]] // Try to match by title
+              
+              return (
+                <div
+                  key={notification.id}
+                  className={cn(
+                    "p-4 rounded-lg border transition-all cursor-pointer hover:shadow-md group",
+                    notification.read 
+                      ? 'bg-gray-50 hover:bg-gray-100 border-gray-200' 
+                      : `${styles.bgColor} hover:${styles.bgColor.replace('50', '100')} ${styles.borderColor}`,
+                    "relative"
+                  )}
+                  onClick={() => handleNotificationClick(notification)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      handleNotificationClick(notification)
+                    }
+                  }}
+                  tabIndex={0}
+                  role="button"
+                  aria-label={`Notification: ${notification.title}`}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-start space-x-3 flex-1 min-w-0">
+                      {/* Notification icon */}
+                      <div className="flex-shrink-0">
+                        <Icon
+                          name={getNotificationIcon(notification) as any}
+                          className={cn("h-5 w-5 mt-0.5", styles.color)}
+                        />
                       </div>
-                      <p className="text-sm text-gray-600 mt-1 line-clamp-2">
-                        {notification.message}
-                      </p>
-                      <div className="flex items-center justify-between mt-2">
-                        <p className="text-xs text-gray-400">
-                          {getRelativeTime(notification.timestamp)}
+                      
+                      <div className="flex-1 min-w-0">
+                        {/* Title with event emoji if available */}
+                        <div className="flex items-center justify-between mb-1">
+                          <p className={cn(
+                            "font-medium truncate",
+                            notification.read ? 'text-gray-700' : 'text-gray-900'
+                          )}>
+                            {eventConfig?.emoji && (
+                              <span className="mr-2">{eventConfig.emoji}</span>
+                            )}
+                            {notification.title}
+                          </p>
+                          {!notification.read && (
+                            <div className="w-2 h-2 bg-blue-600 rounded-full ml-2 flex-shrink-0" />
+                          )}
+                        </div>
+                        
+                        {/* Message */}
+                        <p className="text-sm text-gray-600 line-clamp-2 mb-2">
+                          {notification.message}
                         </p>
-                        {(notification.actionUrl || notification.data?.eventId) && (
-                          <p className="text-xs text-blue-600">Click to view →</p>
+                        
+                        {/* Event type description */}
+                        {eventConfig?.description && (
+                          <p className="text-xs text-gray-500 italic mb-2">
+                            {eventConfig.description}
+                          </p>
+                        )}
+                        
+                        {/* Footer with time and action hint */}
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs text-gray-400">
+                            {getRelativeTime(notification.timestamp)}
+                          </p>
+                          
+                          {(notification.actionUrl || notification.data?.eventId) && (
+                            <p className="text-xs text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity">
+                              Click to view →
+                            </p>
+                          )}
+                        </div>
+                        
+                        {/* Additional data preview */}
+                        {notification.data && Object.keys(notification.data).length > 0 && (
+                          <div className="mt-2 text-xs text-gray-500">
+                            {notification.data.eventTitle && (
+                              <div>Event: {notification.data.eventTitle}</div>
+                            )}
+                            {notification.data.hoursUntilEvent && (
+                              <div>Starts in: {notification.data.hoursUntilEvent}h</div>
+                            )}
+                          </div>
                         )}
                       </div>
                     </div>
-                  </div>
-                  
-                  <div className="flex items-center space-x-1 ml-2">
-                    {!notification.read && (
+                    
+                    {/* Action buttons */}
+                    <div className="flex items-center space-x-1 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      {!notification.read && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleMarkAsRead(notification.id)
+                          }}
+                          className="h-8 w-8 p-0"
+                          title="Mark as read"
+                        >
+                          <Icon name="Check" className="h-4 w-4" />
+                        </Button>
+                      )}
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={(e) => {
                           e.stopPropagation()
-                          handleMarkAsRead(notification.id)
+                          handleRemove(notification.id)
                         }}
                         className="h-8 w-8 p-0"
-                        title="Mark as read"
+                        title="Remove notification"
                       >
-                        <Icon name="Check" className="h-4 w-4" />
+                        <Icon name="X" className="h-4 w-4" />
                       </Button>
-                    )}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleRemove(notification.id)
-                      }}
-                      className="h-8 w-8 p-0"
-                      title="Remove notification"
-                    >
-                      <Icon name="X" className="h-4 w-4" />
-                    </Button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </CardContent>

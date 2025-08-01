@@ -14,9 +14,10 @@ import { useAuth } from '@/shared/hooks/useAuth'
 import { useLogoutMutation } from '@/features/auth/api/authApi'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { clearAuth } from '@/app/slices/authSlice'
-import { PermissionGuard } from '@/shared/components/PermissionGaurd'
+import { PermissionGuard } from '@/shared/components/PermissionGaurd' 
 import { cn } from '@/lib/utils'
 import { NotificationPanel } from '@/features/notifications/components/NotificationPanel'
+
 
 export interface HeaderProps {
   className?: string
