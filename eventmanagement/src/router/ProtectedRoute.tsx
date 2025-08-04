@@ -1,39 +1,53 @@
+import { useEffect } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
-import { useAuth } from '@/shared/hooks/useAuth'
-import { Spinner } from '@/components/atoms'
+import { useGetCurrentUserQuery } from '@/features/auth/api/authApi'
+import { useAuth } from '../shared/hooks/useAuth'
 
 interface ProtectedRouteProps {
-  children: React.ReactNode
-  requiredRoles?: string[]
-  redirectTo?: string
+  children: React.ReactNode;
+  requiredRoles?: string[];
 }
 
-export const ProtectedRoute = ({ 
+const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ 
   children, 
-  requiredRoles = [], 
-  redirectTo = '/auth/login' 
-}: ProtectedRouteProps) => {
-  const { isAuthenticated, isLoading, roles } = useAuth()
-  const location = useLocation()
-
+  requiredRoles = [] 
+}) => {
+  const { isAuthenticated, user, isLoading } = useAuth();
+  const location = useLocation();
+  
+  // Don't make additional API calls here - let useAuth handle it
+  
+  // Show loading screen only during initial auth verification
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Spinner size="large" />
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+          <p className="text-gray-600">Verifying authentication...</p>
+        </div>
       </div>
-    )
+    );
   }
 
+  // Redirect to login if not authenticated
   if (!isAuthenticated) {
-    return <Navigate to={redirectTo} state={{ from: location }} replace />
+    console.log('ProtectedRoute: User not authenticated, redirecting to login')
+    return <Navigate to="/auth/login" state={{ from: location }} replace />;
   }
 
-  if (requiredRoles.length > 0) {
-    const hasRequiredRole = requiredRoles.some(role => roles.includes(role))
+  // Check role requirements
+  if (requiredRoles.length > 0 && user) {
+    const hasRequiredRole = requiredRoles.some(role => 
+      user.roles && user.roles.includes(role)
+    );
+    
     if (!hasRequiredRole) {
-      return <Navigate to="/unauthorized" replace />
+      console.log('ProtectedRoute: User lacks required roles:', requiredRoles, 'User roles:', user.roles)
+      return <Navigate to="/unauthorized" replace />;
     }
   }
 
-  return <>{children}</>
-}
+  return <>{children}</>;
+};
+
+export default ProtectedRoute;

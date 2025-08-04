@@ -1,8 +1,8 @@
-import { useMemo, useCallback } from 'react'
+import { useMemo, useCallback, useEffect } from 'react'
 import { useAppSelector, useAppDispatch } from '@/app/hooks'
 import { useGetCurrentUserQuery } from '@/features/auth/api/authApi'
-import { setAuth } from '@/app/slices/authSlice'
-import type { RootState } from '@/app/store'
+import { setAuth, clearAuth, setLoading } from '@/app/slices/authSlice'
+import type { RootState } from '@/app/store/store'
 
 interface UserPermissions {
   canViewEvents: boolean
@@ -36,22 +36,34 @@ export const getPermissions = (roles: string[]): UserPermissions => {
 
 export const useAuth = () => {
   const dispatch = useAppDispatch()
-  const { user, isAuthenticated, roles } = useAppSelector((state: RootState) => state.auth)
+  const { user, isAuthenticated, isLoading: authLoading, isInitialized } = useAppSelector((state: RootState) => state.auth)
   
-  const { data, isLoading, error } = useGetCurrentUserQuery(undefined, {
-    skip: isAuthenticated,
+  const { 
+    data, 
+    isLoading: queryLoading, 
+    error,
+    refetch 
+  } = useGetCurrentUserQuery(undefined, {
+    // Only skip if we already have a user OR if we've completed initialization
+    skip: isAuthenticated || isInitialized,
+    // Disable automatic refetching on focus to prevent infinite loading
+    refetchOnFocus: false,
+    refetchOnReconnect: false,
   })
 
   // Update auth state when query succeeds
-  useMemo(() => {
-    if (data?.success && data.data.user && !isAuthenticated) {
-      dispatch(setAuth({
-        user: data.data.user,
-        roles: data.data.roles,
-      }))
+  useEffect(() => {
+    if (data?.success && data.data && !isAuthenticated) {
+      console.log('Setting auth from API response:', data.data)
+      dispatch(setAuth(data.data))
+    } else if (error && !isAuthenticated && !isInitialized) {
+      console.log('Auth query failed, clearing auth state')
+      dispatch(clearAuth())
     }
-  }, [data, dispatch, isAuthenticated])
+  }, [data, error, dispatch, isAuthenticated, isInitialized])
 
+  // Get roles from user object
+  const roles = user?.roles || []
   const permissions = useMemo(() => getPermissions(roles), [roles])
 
   const hasRole = useCallback((role: string) => roles.includes(role), [roles])
@@ -64,6 +76,10 @@ export const useAuth = () => {
     [permissions]
   )
 
+  // Show loading during initial auth check OR during any auth-related API calls
+  const isLoading = (!isInitialized && (authLoading || queryLoading)) || 
+                   (isInitialized && queryLoading && !isAuthenticated)
+
   return {
     user,
     roles,
@@ -74,6 +90,7 @@ export const useAuth = () => {
     isAuthenticated: !!user,
     isLoading,
     error,
+    refetch,
     isAdmin: hasRole('Admin'),
     isUser: hasRole('User'),
   }

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -28,8 +28,9 @@ export interface LoginFormProps {
 
 export const LoginForm = ({ onSuccess, className }: LoginFormProps) => {
   const navigate = useNavigate()
+  const location = useLocation()
   const dispatch = useAppDispatch()
-  const [login, { isLoading }] = useLoginMutation()
+  const [login, { isLoading, error }] = useLoginMutation()
   const [showPassword, setShowPassword] = useState(false)
 
   const {
@@ -38,6 +39,7 @@ export const LoginForm = ({ onSuccess, className }: LoginFormProps) => {
     formState: { errors },
     setValue,
     watch,
+    setError,
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -49,18 +51,58 @@ export const LoginForm = ({ onSuccess, className }: LoginFormProps) => {
 
   const onSubmit = async (data: LoginFormData) => {
     try {
+      console.log('Attempting login for:', data.email)
       const result = await login(data).unwrap()
-      if (result.success) {
-        dispatch(setAuth({
-          user: result.data.user,
+      
+      if (result.success && result.data) {
+        console.log('Login successful:', result.data)
+        console.log('User roles:', result.data.roles)
+        
+        // Transform backend response to match frontend UserDto
+        const userData = {
+          id: result.data.userId,
+          firstName: result.data.firstName,
+          lastName: result.data.lastName,
+          email: result.data.email,
           roles: result.data.roles,
-        }))
+          isActive: true,
+          createdAt: new Date().toISOString(),
+        }
+        
+        // Set user data
+        dispatch(setAuth(userData))
+        
+        // Call success callback
         onSuccess?.()
-        navigate('/')
+        
+        // Wait a moment for cookies to be established before navigation
+        setTimeout(() => {
+          // Determine redirect path based on user roles
+          const isAdmin = result.data.roles.includes('Admin')
+          const from = location.state?.from?.pathname
+          
+          let redirectPath = '/'
+          if (from && !from.startsWith('/auth')) {
+            redirectPath = from
+          } else if (isAdmin) {
+            redirectPath = '/admin'
+          }
+          
+          console.log('Redirecting to:', redirectPath)
+          navigate(redirectPath, { replace: true })
+        }, 100) // Small delay to allow cookies to be established
       }
     } catch (error: any) {
       console.error('Login failed:', error)
-      // Error handling will be done by global error handler
+      
+      // Handle specific error cases
+      if (error.status === 401) {
+        setError('email', { message: 'Invalid email or password' })
+      } else if (error.data?.message) {
+        setError('email', { message: error.data.message })
+      } else {
+        setError('email', { message: 'Login failed. Please try again.' })
+      }
     }
   }
 
@@ -74,6 +116,15 @@ export const LoginForm = ({ onSuccess, className }: LoginFormProps) => {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          {/* General Error Display */}
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+              <p className="text-sm text-red-600">
+                {(error as any)?.data?.message || 'Login failed. Please try again.'}
+              </p>
+            </div>
+          )}
+
           <FormField
             label="Email"
             error={errors.email?.message}

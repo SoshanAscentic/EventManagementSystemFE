@@ -1,69 +1,95 @@
 import { useState, useEffect } from 'react'
-import { Input, Icon } from '@/components/atoms'
+import { Search, X } from 'lucide-react'
+import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
-export interface SearchBoxProps {
-  placeholder?: string
-  value?: string
+interface SearchBoxProps {
+  value: string
   onChange: (value: string) => void
-  onClear?: () => void
-  debounceMs?: number
+  placeholder?: string
   className?: string
+  debounceMs?: number
+  onClear?: () => void
+  disabled?: boolean
 }
 
-export const SearchBox = ({ 
-  placeholder = 'Search...', 
-  value = '', 
-  onChange, 
+export const SearchBox = ({
+  value,
+  onChange,
+  placeholder = 'Search...',
+  className,
+  debounceMs = 0,
   onClear,
-  debounceMs = 300,
-  className 
+  disabled = false,
 }: SearchBoxProps) => {
-  const [localValue, setLocalValue] = useState(value)
+  const [internalValue, setInternalValue] = useState(value)
 
+  // Sync internal value with external value
   useEffect(() => {
-    const timer = setTimeout(() => {
-      onChange(localValue)
-    }, debounceMs)
-
-    return () => clearTimeout(timer)
-  }, [localValue, onChange, debounceMs])
-
-  useEffect(() => {
-    setLocalValue(value)
+    setInternalValue(value)
   }, [value])
 
+  // Handle debounced changes
+  useEffect(() => {
+    if (debounceMs > 0) {
+      const timer = setTimeout(() => {
+        onChange(internalValue)
+      }, debounceMs)
+
+      return () => clearTimeout(timer)
+    }
+  }, [internalValue, onChange, debounceMs])
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = e.target.value
+    setInternalValue(newValue)
+    
+    // If no debounce, call onChange immediately
+    if (debounceMs === 0) {
+      onChange(newValue)
+    }
+  }
+
   const handleClear = () => {
-    setLocalValue('')
+    setInternalValue('')
     onChange('')
     onClear?.()
   }
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      handleClear()
+    }
+  }
+
   return (
     <div className={cn('relative', className)}>
-      <Icon 
-        name="Search" 
-        className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" 
-      />
-      <Input
-        type="text"
-        placeholder={placeholder}
-        value={localValue}
-        onChange={(e) => setLocalValue(e.target.value)}
-        className="pl-10 pr-10"
-      />
-      {localValue && (
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2 p-0"
-          onClick={handleClear}
-        >
-          <Icon name="X" className="h-4 w-4" />
-        </Button>
-      )}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+        <Input
+          type="text"
+          value={internalValue}
+          onChange={handleInputChange}
+          onKeyDown={handleKeyDown}
+          placeholder={placeholder}
+          disabled={disabled}
+          className="pl-10 pr-10"
+        />
+        {internalValue && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={handleClear}
+            disabled={disabled}
+            className="absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2 p-0 hover:bg-gray-100"
+          >
+            <X className="h-3 w-3" />
+            <span className="sr-only">Clear search</span>
+          </Button>
+        )}
+      </div>
     </div>
   )
 }

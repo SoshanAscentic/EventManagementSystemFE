@@ -2,19 +2,27 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { RootLayout } from '@/layouts/RootLayout'
 import { AuthLayout } from '@/layouts/AuthLayout'
 import { DashboardLayout } from '@/layouts/DashboardLayout'
-import { ProtectedRoute } from './ProtectedRoute'
-import { routes } from './routeConfig'
+import ProtectedRoute from './ProtectedRoute'
 
 // Pages
 import { HomePage } from '@/pages/HomePage'
 import { EventsPage } from '@/pages/EventsPage'
 import { EventDetailPage } from '@/pages/EventDetailPage'
+import { EventRegistrationPage } from '@/pages/EventRegistrationPage'
 import { LoginPage } from '@/pages/LoginPage'
 import { RegisterPage } from '@/pages/RegisterPage'
 import { ProfilePage } from '@/pages/ProfilePage'
+import { MyRegistrationsPage } from '@/pages/MyRegistrationsPage'
 import { DashboardPage } from '@/pages/DashboardPage'
+import { EventManagementPage } from '@/pages/EventManagementPage'
+import { CreateEventPage } from '@/pages/CreateEventPage'
+import { EventEditPage } from '@/pages/EventEditPage'
+import { CategoriesManagementPage } from '@/pages/CategoriesManagementPage'
+import { CreateCategoryPage } from '@/pages/CreateCategoryPage'
+import { UserManagementPage } from '@/pages/UserManagementPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { UnauthorizedPage } from '@/pages/UnauthorizedPage'
+import { CategoriesPage } from '@/pages/CategoriesPage'
 
 export const AppRouter = () => {
   return (
@@ -23,23 +31,29 @@ export const AppRouter = () => {
         {/* Public Routes */}
         <Route path="/" element={<RootLayout />}>
           <Route index element={<HomePage />} />
-          <Route path={routes.events.list} element={<EventsPage />} />
-          <Route path={routes.events.detail} element={<EventDetailPage />} />
-          <Route path={routes.categories} element={<div>Categories Page (Phase 2)</div>} />
+          <Route path="events" element={<EventsPage />} />
+          <Route path="events/:id" element={<EventDetailPage />} />
+          <Route path="categories" element={<CategoriesPage />} />
         </Route>
 
         {/* Auth Routes */}
         <Route path="/auth" element={<AuthLayout />}>
           <Route path="login" element={<LoginPage />} />
           <Route path="register" element={<RegisterPage />} />
-          <Route path="forgot-password" element={<div>Forgot Password (Phase 2)</div>} />
-          <Route path="reset-password" element={<div>Reset Password (Phase 2)</div>} />
         </Route>
 
         {/* Protected Routes */}
         <Route path="/" element={<RootLayout />}>
           <Route 
-            path={routes.profile.view} 
+            path="events/:id/register" 
+            element={
+              <ProtectedRoute>
+                <EventRegistrationPage />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="profile" 
             element={
               <ProtectedRoute>
                 <ProfilePage />
@@ -47,18 +61,10 @@ export const AppRouter = () => {
             } 
           />
           <Route 
-            path={routes.profile.edit} 
+            path="registrations" 
             element={
               <ProtectedRoute>
-                <div>Edit Profile (Phase 2)</div>
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path={routes.profile.registrations} 
-            element={
-              <ProtectedRoute>
-                <div>My Registrations (Phase 2)</div>
+                <MyRegistrationsPage />
               </ProtectedRoute>
             } 
           />
@@ -74,15 +80,27 @@ export const AppRouter = () => {
           }
         >
           <Route index element={<DashboardPage />} />
-          <Route path="events" element={<div>Admin Events (Phase 2)</div>} />
-          <Route path="users" element={<div>Admin Users (Phase 2)</div>} />
-          <Route path="categories" element={<div>Admin Categories (Phase 2)</div>} />
+          
+          {/* Event Management Routes */}
+          <Route path="events" element={<EventManagementPage />} />
+          <Route path="events/create" element={<CreateEventPage />} />
+          <Route path="events/:id/edit" element={<EventEditPage />} />
+          
+          {/* Category Management Routes */}
+          <Route path="categories" element={<CategoriesManagementPage />} />
+          <Route path="categories/create" element={<CreateCategoryPage />} />
+          
+          {/* User Management Routes */}
+          <Route path="users" element={<UserManagementPage />} />
+          
+          {/* Future routes */}
+          {/* <Route path="analytics" element={<AnalyticsPage />} /> */}
         </Route>
 
         {/* Error Routes */}
-        <Route path={routes.unauthorized} element={<UnauthorizedPage />} />
-        <Route path={routes.notFound} element={<NotFoundPage />} />
-        <Route path="*" element={<Navigate to={routes.notFound} replace />} />
+        <Route path="/unauthorized" element={<UnauthorizedPage />} />
+        <Route path="/404" element={<NotFoundPage />} />
+        <Route path="*" element={<Navigate to="/404" replace />} />
       </Routes>
     </BrowserRouter>
   )

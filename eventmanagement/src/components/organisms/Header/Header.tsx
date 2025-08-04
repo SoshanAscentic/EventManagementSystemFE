@@ -11,18 +11,26 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback, AvatarImage, Badge, Icon } from '@/components/atoms'
 import { useAuth } from '@/shared/hooks/useAuth'
-import { PermissionGuard } from '@/shared/components/PermissionGaurd'
+import { useLogoutMutation } from '@/features/auth/api/authApi'
+import { useAppDispatch, useAppSelector } from '@/app/hooks'
+import { clearAuth } from '@/app/slices/authSlice'
+import { PermissionGuard } from '@/shared/components/PermissionGaurd' 
 import { cn } from '@/lib/utils'
+import { NotificationPanel } from '@/features/notifications/components/NotificationPanel'
+
 
 export interface HeaderProps {
-  onLogout?: () => void
   className?: string
 }
 
-export const Header = ({ onLogout, className }: HeaderProps) => {
+export const Header = ({ className }: HeaderProps) => {
   const navigate = useNavigate()
+  const dispatch = useAppDispatch()
   const { user, isAuthenticated, hasPermission } = useAuth()
+  const [logout, { isLoading: isLoggingOut }] = useLogoutMutation()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [notificationOpen, setNotificationOpen] = useState(false)
+  const { unreadCount } = useAppSelector(state => state.notifications)
 
   const navigationItems = [
     { label: 'Events', href: '/events', icon: 'Calendar' as const },
@@ -31,9 +39,22 @@ export const Header = ({ onLogout, className }: HeaderProps) => {
 
   const userInitials = user ? `${user.firstName[0]}${user.lastName[0]}` : 'U'
 
-  const handleLogout = () => {
-    onLogout?.()
-    navigate('/auth/login')
+  const handleLogout = async () => {
+    try {
+      // First clear the UI state
+      dispatch(clearAuth())
+      
+      // Then call the logout API (this will clear cookies)
+      await logout().unwrap()
+      
+      // Navigate to login
+      navigate('/')
+    } catch (error) {
+      console.error('Logout failed:', error)
+      // Even if API fails, ensure we clear local state and redirect
+      dispatch(clearAuth())
+      navigate('/auth/login')
+    }
   }
 
   return (
@@ -80,16 +101,25 @@ export const Header = ({ onLogout, className }: HeaderProps) => {
           <div className="flex items-center space-x-4">
             {isAuthenticated ? (
               <>
-                {/* Notifications */}
-                <Button variant="ghost" size="icon" className="relative">
-                  <Icon name="Bell" className="h-5 w-5" />
-                  <Badge 
-                    variant="destructive" 
-                    className="absolute -top-1 -right-1 h-5 w-5 p-0 text-xs"
-                  >
-                    3
-                  </Badge>
-                </Button>
+                {/* Notifications Dropdown */}
+                <DropdownMenu open={notificationOpen} onOpenChange={setNotificationOpen}>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="relative">
+                      <Icon name="Bell" className="h-5 w-5" />
+                      {unreadCount > 0 && (
+                        <Badge 
+                          variant="destructive" 
+                          className="absolute -top-1 -right-1 h-5 w-5 p-0 text-xs flex items-center justify-center"
+                        >
+                          {unreadCount > 99 ? '99+' : unreadCount}
+                        </Badge>
+                      )}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-96 p-0">
+                    <NotificationPanel />
+                  </DropdownMenuContent>
+                </DropdownMenu>
 
                 {/* User Menu */}
                 <DropdownMenu>
@@ -110,6 +140,13 @@ export const Header = ({ onLogout, className }: HeaderProps) => {
                         <p className="text-xs leading-none text-muted-foreground">
                           {user?.email}
                         </p>
+                        <div className="flex gap-1 mt-2">
+                          {user?.roles.map((role: string) => (
+                            <Badge key={role} variant="secondary" className="text-xs">
+                              {role}
+                            </Badge>
+                          ))}
+                        </div>
                       </div>
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
@@ -117,7 +154,7 @@ export const Header = ({ onLogout, className }: HeaderProps) => {
                       <Icon name="User" className="mr-2 h-4 w-4" />
                       Profile
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => navigate('/profile/registrations')}>
+                    <DropdownMenuItem onClick={() => navigate('/registrations')}>
                       <Icon name="Ticket" className="mr-2 h-4 w-4" />
                       My Registrations
                     </DropdownMenuItem>
@@ -125,10 +162,22 @@ export const Header = ({ onLogout, className }: HeaderProps) => {
                       <Icon name="Settings" className="mr-2 h-4 w-4" />
                       Settings
                     </DropdownMenuItem>
+                    
+                    {/* Admin Dashboard Link */}
+                    <PermissionGuard permissions={['canAccessAdminPanel']}>
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => navigate('/admin')}>
+                          <Icon name="Shield" className="mr-2 h-4 w-4" />
+                          Admin Dashboard
+                        </DropdownMenuItem>
+                      </>
+                    </PermissionGuard>
+                    
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={handleLogout}>
+                    <DropdownMenuItem onClick={handleLogout} disabled={isLoggingOut}>
                       <Icon name="LogOut" className="mr-2 h-4 w-4" />
-                      Log out
+                      {isLoggingOut ? 'Logging out...' : 'Log out'}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>

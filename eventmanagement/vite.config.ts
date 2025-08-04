@@ -1,23 +1,30 @@
-import path from "path"
+import { defineConfig } from 'vite'
 import tailwindcss from "@tailwindcss/vite"
-import react from "@vitejs/plugin-react"
-import { defineConfig } from "vite"
+import react from '@vitejs/plugin-react'
+import path from 'path'
 
-// https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src"),
+      '@': path.resolve(__dirname, './src'),
     },
   },
   server: {
+    port: 5173, // Make sure this matches your backend CORS configuration
+    host: true, // Allow access from network
     proxy: {
-      '/api': {
-        target: 'http://localhost:5000',
+      '/notificationHub': {
+        target: 'https://localhost:7026',
         changeOrigin: true,
         secure: false,
+        ws: true, // Enable WebSocket proxying
       },
-    },
-  },
+      '/api': {
+        target: 'https://localhost:7026',
+        changeOrigin: true,
+        secure: false,
+      }
+    }
+  }
 })
