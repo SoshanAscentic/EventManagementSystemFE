@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useCallback, useEffect, useState, useRef } from 'react'
 import * as signalR from '@microsoft/signalr'
-import { toast } from 'sonner' // or your preferred toast library
+import { toast } from 'sonner'
 
 // Notification Types based on your documentation
 export type NotificationType = 
@@ -35,6 +35,7 @@ interface NotificationContextType {
   clearAllNotifications: () => void
 }
 
+// Fixed: Simplified context creation
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined)
 
 interface NotificationProviderProps {
@@ -238,7 +239,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
   }
 
   return (
-    <NotificationContext.Provider value={value}>
+    <NotificationContext.Provider value={value} >
       {children}
     </NotificationContext.Provider>
   )
