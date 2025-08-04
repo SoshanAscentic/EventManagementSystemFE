@@ -157,7 +157,13 @@ export const EventDetailPage = () => {
     }
     
     const cleanPath = imageUrl.startsWith('/') ? imageUrl.slice(1) : imageUrl
-    const baseUrl = import.meta.env.VITE_API_URL || 'https://localhost:7026'
+    
+    // Use environment variables with fallback logic
+    const useLocal = import.meta.env.VITE_USE_LOCAL_API === 'true'
+    const productionUrl = import.meta.env.VITE_PRODUCTION_API_URL || 'https://wa-eventhub-backend-dev-southeastasia-g9f8ebhrech0g9ff.southeastasia-01.azurewebsites.net'
+    const localUrl = import.meta.env.VITE_LOCAL_API_URL || 'https://localhost:7026'
+    
+    const baseUrl = useLocal ? localUrl : productionUrl
     return `${baseUrl}/${cleanPath}`
   }
 

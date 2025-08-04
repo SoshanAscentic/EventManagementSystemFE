@@ -17,6 +17,21 @@ interface NotificationData {
   data?: Record<string, any>
 }
 
+// Get API URL from environment variables with fallback
+const getApiBaseUrl = () => {
+  const useLocal = import.meta.env.VITE_USE_LOCAL_API === 'true'
+  const productionUrl = import.meta.env.VITE_PRODUCTION_API_URL || 'https://wa-eventhub-backend-dev-southeastasia-g9f8ebhrech0g9ff.southeastasia-01.azurewebsites.net'
+  const localUrl = import.meta.env.VITE_LOCAL_API_URL || 'https://localhost:7026'
+  
+  if (useLocal) {
+    console.log('SignalR: Using local API:', localUrl)
+    return localUrl
+  } else {
+    console.log('SignalR: Using production API:', productionUrl)
+    return productionUrl
+  }
+}
+
 class RobustSignalRService {
   private connection: signalR.HubConnection | null = null
   private isConnected = false
@@ -197,7 +212,7 @@ class RobustSignalRService {
 
       // Create new connection with enhanced configuration
       this.connection = new signalR.HubConnectionBuilder()
-        .withUrl(`${import.meta.env.VITE_API_URL || 'https://localhost:7026'}/notificationHub`, {
+        .withUrl(`${getApiBaseUrl()}/notificationHub`, {
           accessTokenFactory: async () => {
             // Always get fresh token for each request
             const freshToken = await this.getValidToken()
@@ -349,7 +364,7 @@ class RobustSignalRService {
       }
 
       // Call your refresh endpoint
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://localhost:7026'}/api/auth/refresh`, {
+      const response = await fetch(`${getApiBaseUrl()}/api/auth/refresh`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

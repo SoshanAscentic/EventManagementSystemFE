@@ -3,8 +3,23 @@ import type { RootState } from '../store/store'
 import { clearAuth, setLoading } from '../slices/authSlice'
 import { getTokenFromCookie } from '@/features/auth/api/authApi'
 
+// Get API URL from environment variables with fallback
+const getApiBaseUrl = () => {
+  const useLocal = import.meta.env.VITE_USE_LOCAL_API === 'true'
+  const productionUrl = import.meta.env.VITE_PRODUCTION_API_URL || 'https://wa-eventhub-backend-dev-southeastasia-g9f8ebhrech0g9ff.southeastasia-01.azurewebsites.net'
+  const localUrl = import.meta.env.VITE_LOCAL_API_URL || 'https://localhost:7026'
+  
+  if (useLocal) {
+    console.log('Using local API:', localUrl)
+    return `${localUrl}/api`
+  } else {
+    console.log('Using production API:', productionUrl)
+    return `${productionUrl}/api`
+  }
+}
+
 const baseQuery = fetchBaseQuery({
-  baseUrl: 'https://localhost:7026/api', 
+  baseUrl: getApiBaseUrl(),
   mode: 'cors',
   prepareHeaders: (headers, { endpoint }) => {
     // DON'T set Content-Type for file uploads - let browser handle it
@@ -26,11 +41,55 @@ const baseQuery = fetchBaseQuery({
   },
 })
 
+// Enhanced base query with fallback support
 const baseQueryWithReauth = async (args: any, api: any, extraOptions: any) => {
   // Set loading state
   api.dispatch(setLoading(true))
   
   let result = await baseQuery(args, api, extraOptions)
+  
+  // Check if the request failed due to network issues (e.g., production server down)
+  if (result.error && 
+      (result.error.status === 'FETCH_ERROR' || 
+       result.error.status === 'TIMEOUT_ERROR' ||
+       result.error.status === 'PARSING_ERROR')) {
+    
+    const isUsingProduction = !import.meta.env.VITE_USE_LOCAL_API || import.meta.env.VITE_USE_LOCAL_API !== 'true'
+    
+    if (isUsingProduction) {
+      console.warn('Production API failed, attempting fallback to local API...')
+      
+      // Create a fallback query with local URL
+      const localUrl = import.meta.env.VITE_LOCAL_API_URL || 'https://localhost:7026'
+      const fallbackQuery = fetchBaseQuery({
+        baseUrl: `${localUrl}/api`,
+        mode: 'cors',
+        prepareHeaders: (headers, { endpoint }) => {
+          const isFileUpload = endpoint === 'uploadEventImage' || 
+                              (endpoint && typeof endpoint === 'string' && endpoint.includes('upload'))
+          
+          if (!isFileUpload) {
+            headers.set('Content-Type', 'application/json')
+          }
+          headers.set('Accept', 'application/json')
+          
+          const token = getTokenFromCookie('accessToken')
+          if (token) {
+            headers.set('Authorization', `Bearer ${token}`)
+          }
+          
+          return headers
+        },
+      })
+      
+      try {
+        result = await fallbackQuery(args, api, extraOptions)
+        console.log('Successfully connected to local API fallback')
+      } catch (fallbackError) {
+        console.error('Both production and local APIs failed:', fallbackError)
+      }
+    }
+  }
   
   if (result.error && result.error.status === 401) {
     // Only attempt refresh if this isn't already a refresh request
@@ -113,4 +172,8 @@ export const baseApi = createApi({
   ],
   endpoints: () => ({}),
 })
+
+// Export utility functions for API URL management
+export const getCurrentApiUrl = () => getApiBaseUrl()
+export const isUsingLocalApi = () => import.meta.env.VITE_USE_LOCAL_API === 'true'
 
