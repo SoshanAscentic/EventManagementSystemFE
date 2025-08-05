@@ -11,19 +11,29 @@ export default defineConfig({
     },
   },
   build: {
+    // Disable source maps in production
+    sourcemap: false,
+    
+    // Increase chunk size warning limit
+    chunkSizeWarningLimit: 2000,
+    
+    // Optimize asset inlining
+    assetsInlineLimit: 4096, // Inline assets smaller than 4KB
+    
     rollupOptions: {
       output: {
+        // Reduce the number of chunks by consolidating vendors
         manualChunks: {
-          // Core React libraries
-          'react-vendor': ['react', 'react-dom'],
+          // Core React and routing
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
           
-          // Routing and state management
-          'app-core': ['react-router-dom', '@reduxjs/toolkit', 'react-redux'],
+          // Redux and API
+          'state-vendor': ['@reduxjs/toolkit', 'react-redux'],
           
-          // UI library - group all Radix components (only the ones you actually have)
-          'ui-components': [
+          // UI components - consolidate all Radix UI into one chunk
+          'ui-vendor': [
             '@radix-ui/react-alert-dialog',
-            '@radix-ui/react-avatar', 
+            '@radix-ui/react-avatar',
             '@radix-ui/react-checkbox',
             '@radix-ui/react-dropdown-menu',
             '@radix-ui/react-label',
@@ -36,48 +46,51 @@ export default defineConfig({
             '@radix-ui/react-tabs'
           ],
           
-          // Form handling
-          'forms': ['react-hook-form', '@hookform/resolvers', 'zod'],
-          
-          // Utilities and UI helpers
-          'utils': ['date-fns', 'clsx', 'tailwind-merge', 'sonner', 'lucide-react'],
-          
-          // SignalR
-          'signalr': ['@microsoft/signalr'],
-          
-          // Tailwind and styling
-          'styling': ['@tailwindcss/forms', '@tailwindcss/typography', 'class-variance-authority'],
-          
-          // Table components
-          'table': ['@tanstack/react-table']
+          // Utilities - consolidate all utilities
+          'utils-vendor': [
+            'date-fns', 
+            'clsx', 
+            'tailwind-merge', 
+            'sonner', 
+            'lucide-react',
+            'react-hook-form', 
+            '@hookform/resolvers', 
+            'zod',
+            '@microsoft/signalr',
+            '@tanstack/react-table'
+          ]
         },
-        chunkFileNames: 'assets/js/[name]-[hash].js',
-        entryFileNames: 'assets/js/[name]-[hash].js',
+        
+        // Simplify file naming to reduce total file count
+        chunkFileNames: 'js/[hash].js',
+        entryFileNames: 'js/[hash].js',
         assetFileNames: (assetInfo) => {
-          // Handle undefined name case
-          if (!assetInfo.name) {
-            return 'assets/[name]-[hash][extname]'
-          }
-          
-          const info = assetInfo.name.split('.')
-          const ext = info[info.length - 1]
+          if (!assetInfo.name) return '[hash][extname]'
           
           if (/\.(css)$/.test(assetInfo.name)) {
-            return `assets/css/[name]-[hash][extname]`
+            return `css/[hash][extname]`
           }
           if (/\.(png|jpe?g|svg|gif|tiff|bmp|ico)$/i.test(assetInfo.name)) {
-            return `assets/images/[name]-[hash][extname]`
+            return `img/[hash][extname]`
           }
-          return `assets/${ext}/[name]-[hash][extname]`
+          return `[hash][extname]`
         }
       }
     },
-    chunkSizeWarningLimit: 1000,
+    
+    // Additional optimizations
     commonjsOptions: {
       transformMixedEsModules: true
     },
-    // Reduce asset inlining to avoid too many small files
-    assetsInlineLimit: 0
+    
+    // Minify more aggressively
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true,
+        drop_debugger: true
+      }
+    }
   },
   server: {
     port: 5173,

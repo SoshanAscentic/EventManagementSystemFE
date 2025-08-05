@@ -30,28 +30,46 @@ jobs:
       - name: Install dependencies
         run: |
           cd eventmanagement
+          npm ci --only=production
           npm install
 
       - name: Build application
         run: |
           cd eventmanagement
-          npm run build
+          NODE_ENV=production npm run build
           
-      - name: Clean up build artifacts
+      - name: Optimize build output
         run: |
           cd eventmanagement/dist
-          # Remove source maps and other unnecessary files
+          
+          # Remove all source maps and development files
           find . -name "*.map" -delete
           find . -name "*.txt" -delete
           find . -name ".DS_Store" -delete
-          # Remove empty directories
+          find . -name "*.log" -delete
+          
+          # Remove any development-only files
+          find . -name "*.dev.*" -delete
+          find . -name "*.development.*" -delete
+          
+          # Clean up empty directories
           find . -type d -empty -delete
-          # Count files for debugging
-          echo "Total files in dist: $(find . -type f | wc -l)"
-          echo "Largest files:"
-          find . -type f -exec ls -la {} + | sort -k5 -nr | head -10
-          echo "File breakdown by type:"
-          find . -type f | sed 's/.*\.//' | sort | uniq -c | sort -nr
+          
+          # Compress large text files if any
+          find . -name "*.js" -size +100k -exec echo "Large JS file: {}" \;
+          find . -name "*.css" -size +50k -exec echo "Large CSS file: {}" \;
+          
+          # Final count and size check
+          FILE_COUNT=$(find . -type f | wc -l)
+          TOTAL_SIZE=$(du -sh . | cut -f1)
+          echo "Final file count: $FILE_COUNT"
+          echo "Total size: $TOTAL_SIZE"
+          
+          # Fail if too many files (Azure limit is around 20,000)
+          if [ $FILE_COUNT -gt 15000 ]; then
+            echo "ERROR: Too many files ($FILE_COUNT). Azure Static Web Apps limit exceeded."
+            exit 1
+          fi
 
       - name: Build And Deploy
         id: builddeploy
