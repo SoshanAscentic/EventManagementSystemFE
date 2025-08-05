@@ -15,53 +15,29 @@ export default defineConfig({
     sourcemap: false,
     
     // Increase chunk size warning limit
-    chunkSizeWarningLimit: 2000,
+    chunkSizeWarningLimit: 5000,
     
-    // Optimize asset inlining
-    assetsInlineLimit: 4096, // Inline assets smaller than 4KB
+    // Optimize asset inlining - inline more assets to reduce file count
+    assetsInlineLimit: 10240, // Inline assets smaller than 10KB instead of 4KB
     
     rollupOptions: {
+      // Tree shaking for smaller bundles
+      treeshake: {
+        preset: 'safest'
+      },
       output: {
-        // Reduce the number of chunks by consolidating vendors
-        manualChunks: {
-          // Core React and routing
-          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-          
-          // Redux and API
-          'state-vendor': ['@reduxjs/toolkit', 'react-redux'],
-          
-          // UI components - consolidate all Radix UI into one chunk
-          'ui-vendor': [
-            '@radix-ui/react-alert-dialog',
-            '@radix-ui/react-avatar',
-            '@radix-ui/react-checkbox',
-            '@radix-ui/react-dropdown-menu',
-            '@radix-ui/react-label',
-            '@radix-ui/react-navigation-menu',
-            '@radix-ui/react-progress',
-            '@radix-ui/react-scroll-area',
-            '@radix-ui/react-select',
-            '@radix-ui/react-slot',
-            '@radix-ui/react-switch',
-            '@radix-ui/react-tabs'
-          ],
-          
-          // Utilities - consolidate all utilities
-          'utils-vendor': [
-            'date-fns', 
-            'clsx', 
-            'tailwind-merge', 
-            'sonner', 
-            'lucide-react',
-            'react-hook-form', 
-            '@hookform/resolvers', 
-            'zod',
-            '@microsoft/signalr',
-            '@tanstack/react-table'
-          ]
+        // Aggressive chunking - create fewer, larger chunks
+        manualChunks: (id) => {
+          // Bundle everything into fewer chunks
+          if (id.includes('node_modules')) {
+            // Put all vendor code into a single chunk
+            return 'vendor'
+          }
+          // All app code goes into the main chunk
+          return 'main'
         },
         
-        // Simplify file naming to reduce total file count
+        // Minimize file count with simple naming
         chunkFileNames: 'js/[hash].js',
         entryFileNames: 'js/[hash].js',
         assetFileNames: (assetInfo) => {
@@ -70,10 +46,11 @@ export default defineConfig({
           if (/\.(css)$/.test(assetInfo.name)) {
             return `css/[hash][extname]`
           }
+          // Inline all images or put them in a single directory
           if (/\.(png|jpe?g|svg|gif|tiff|bmp|ico)$/i.test(assetInfo.name)) {
-            return `img/[hash][extname]`
+            return `assets/[hash][extname]`
           }
-          return `[hash][extname]`
+          return `assets/[hash][extname]`
         }
       }
     },
@@ -82,6 +59,9 @@ export default defineConfig({
     commonjsOptions: {
       transformMixedEsModules: true
     },
+    
+    // Minimize CSS
+    cssMinify: true
   },
   server: {
     port: 5173,

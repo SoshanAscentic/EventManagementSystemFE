@@ -38,57 +38,82 @@ jobs:
           cd eventmanagement
           NODE_ENV=production npm run build
           
-      - name: Optimize build output
+      - name: Debug and optimize build output
         run: |
           cd eventmanagement/dist
           
-          # Remove node_modules if it exists (it shouldn't!)
-          rm -rf node_modules/
+          echo "=== BEFORE CLEANUP ==="
+          echo "Files before cleanup:"
+          find . -type f | head -20
+          echo "Total files: $(find . -type f | wc -l)"
+          echo "Total size: $(du -sh . | cut -f1)"
           
-          # Remove all development and config files
-          find . -name "package.json" -delete
-          find . -name "package-lock.json" -delete
-          find . -name "yarn.lock" -delete
-          find . -name "tsconfig*.json" -delete
-          find . -name ".npmrc" -delete
-          find . -name ".yarnrc*" -delete
-          find . -name "vite.config.*" -delete
-          find . -name "tailwind.config.*" -delete
-          find . -name "postcss.config.*" -delete
+          # Remove ALL unnecessary files more aggressively
+          rm -rf node_modules/ 2>/dev/null || true
           
-          # Remove all source maps and development files
-          find . -name "*.map" -delete
-          find . -name "*.txt" -delete
-          find . -name ".DS_Store" -delete
-          find . -name "*.log" -delete
-          find . -name "*.dev.*" -delete
-          find . -name "*.development.*" -delete
+          # Remove all config and development files
+          find . -name "package*.json" -delete 2>/dev/null || true
+          find . -name "yarn.lock" -delete 2>/dev/null || true
+          find . -name "tsconfig*.json" -delete 2>/dev/null || true
+          find . -name ".npmrc" -delete 2>/dev/null || true
+          find . -name ".yarnrc*" -delete 2>/dev/null || true
+          find . -name "vite.config.*" -delete 2>/dev/null || true
+          find . -name "tailwind.config.*" -delete 2>/dev/null || true
+          find . -name "postcss.config.*" -delete 2>/dev/null || true
+          find . -name "*.config.*" -delete 2>/dev/null || true
+          
+          # Remove ALL source maps and development files
+          find . -name "*.map" -delete 2>/dev/null || true
+          find . -name "*.txt" -delete 2>/dev/null || true
+          find . -name ".DS_Store" -delete 2>/dev/null || true
+          find . -name "*.log" -delete 2>/dev/null || true
+          find . -name "*.dev.*" -delete 2>/dev/null || true
+          find . -name "*.development.*" -delete 2>/dev/null || true
           
           # Remove TypeScript declaration files
-          find . -name "*.d.ts" -delete
+          find . -name "*.d.ts" -delete 2>/dev/null || true
           
-          # Remove any test files
-          find . -name "*.test.*" -delete
-          find . -name "*.spec.*" -delete
+          # Remove test files
+          find . -name "*.test.*" -delete 2>/dev/null || true
+          find . -name "*.spec.*" -delete 2>/dev/null || true
+          find . -name "__tests__" -type d -exec rm -rf {} + 2>/dev/null || true
           
           # Remove documentation files
-          find . -name "README*" -delete
-          find . -name "CHANGELOG*" -delete
-          find . -name "LICENSE*" -delete
+          find . -name "README*" -delete 2>/dev/null || true
+          find . -name "CHANGELOG*" -delete 2>/dev/null || true
+          find . -name "LICENSE*" -delete 2>/dev/null || true
+          find . -name "*.md" -delete 2>/dev/null || true
           
-          # Clean up empty directories
-          find . -type d -empty -delete
+          # Remove hidden files and directories (except .well-known)
+          find . -name ".*" -not -path "./.well-known*" -delete 2>/dev/null || true
           
-          # Final verification
+          # Remove any remaining vendor/library files that aren't needed
+          find . -name "src" -type d -exec rm -rf {} + 2>/dev/null || true
+          find . -name "lib" -type d -exec rm -rf {} + 2>/dev/null || true
+          find . -name "dist" -type d -not -path "." -exec rm -rf {} + 2>/dev/null || true
+          
+          # Clean up empty directories recursively
+          find . -type d -empty -delete 2>/dev/null || true
+          find . -type d -empty -delete 2>/dev/null || true  # Run twice to catch nested empty dirs
+          
+          echo "=== AFTER CLEANUP ==="
+          echo "Remaining files:"
+          find . -type f -ls
+          
           FILE_COUNT=$(find . -type f | wc -l)
           TOTAL_SIZE=$(du -sh . | cut -f1)
           echo "Final file count: $FILE_COUNT"
           echo "Total size: $TOTAL_SIZE"
           
-          if [ $FILE_COUNT -gt 10000 ]; then
+          # List the actual files that remain
+          echo "=== FILE LIST ==="
+          find . -type f | sort
+          
+          # Check if we still have too many files
+          if [ $FILE_COUNT -gt 50 ]; then
             echo "ERROR: Still too many files ($FILE_COUNT)"
-            echo "Listing directories by file count:"
-            find . -type d -exec sh -c 'echo "$(find "$1" -maxdepth 1 -type f | wc -l) files in $1"' _ {} \; | sort -nr | head -20
+            echo "Listing files by size:"
+            find . -type f -exec ls -lah {} \; | sort -k5 -hr | head -20
             exit 1
           fi
 
@@ -116,4 +141,3 @@ jobs:
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_YELLOW_RIVER_07F5F4E00 }}
           action: "close"
-
