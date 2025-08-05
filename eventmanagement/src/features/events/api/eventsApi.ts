@@ -77,7 +77,7 @@ export const eventsApi = baseApi.injectEndpoints({
 
     getEventById: builder.query<ApiResponse<EventDto>, number>({
       query: (id) => `/events/${id}`,
-      providesTags: (result, error, id) => [{ type: 'Event', id }],
+      providesTags: (_result, _error, id) => [{ type: 'Event', id }],
     }),
 
     getUpcomingEvents: builder.query<ApiResponse<EventDto[]>, UpcomingEventsParams>({
@@ -108,7 +108,7 @@ export const eventsApi = baseApi.injectEndpoints({
         method: 'PUT',
         body: data,
       }),
-      invalidatesTags: (result, error, { id }) => [
+      invalidatesTags: (_result, _error, { id }) => [
         { type: 'Event', id },
         { type: 'Event', id: 'LIST' },
         { type: 'Event', id: 'UPCOMING' },
@@ -121,7 +121,7 @@ export const eventsApi = baseApi.injectEndpoints({
         method: 'PUT',
         body: { newCapacity },
       }),
-      invalidatesTags: (result, error, { id }) => [
+      invalidatesTags: (_result, _error, { id }) => [
         { type: 'Event', id },
         { type: 'Event', id: 'LIST' },
       ],
@@ -138,7 +138,7 @@ export const eventsApi = baseApi.injectEndpoints({
         message: response.message,
         errors: response.errors
       }),
-      invalidatesTags: (result, error, id) => [
+      invalidatesTags: (_result, _error, id) => [
         { type: 'Event', id },
         { type: 'Event', id: 'LIST' },
         { type: 'Event', id: 'UPCOMING' },
@@ -178,7 +178,7 @@ export const eventsApi = baseApi.injectEndpoints({
           errors: response.errors
         }
       },
-      invalidatesTags: (result, error, { eventId }) => [
+      invalidatesTags: (_result, _error, { eventId }) => [
         { type: 'Event', id: eventId },
         { type: 'Event', id: 'LIST' },
       ],
@@ -195,7 +195,7 @@ export const eventsApi = baseApi.injectEndpoints({
         message: response.message,
         errors: response.errors
       }),
-      invalidatesTags: (result, error, { eventId }) => [
+      invalidatesTags: (_result, _error, { eventId }) => [
         { type: 'Event', id: eventId },
         { type: 'Event', id: 'LIST' },
       ],
@@ -212,7 +212,7 @@ export const eventsApi = baseApi.injectEndpoints({
         message: response.message,
         errors: response.errors
       }),
-      invalidatesTags: (result, error, { eventId }) => [
+      invalidatesTags: (_result, _error, { eventId }) => [
         { type: 'Event', id: eventId },
         { type: 'Event', id: 'LIST' },
       ],

@@ -3,7 +3,6 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { FormField } from '@/components/molecules'
 import { Input, Icon } from '@/components/atoms'
@@ -334,23 +333,6 @@ export const EventForm = ({ event, onSubmit, loading, isEdit = false }: EventFor
     }, [event?.id, deleteImage, uploadedImages])
     
     // Updated file input validation
-    const validateAndHandleFileUpload = (file: File) => {
-      // Client-side validation before upload
-      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
-      const maxSize = 10 * 1024 * 1024 // 10MB
-      
-      if (!allowedTypes.includes(file.type.toLowerCase())) {
-        alert('Please select a valid image file (JPEG, PNG, GIF, or WebP)')
-        return false
-      }
-      
-      if (file.size > maxSize) {
-        alert('File size must be less than 10MB')
-        return false
-      }
-      
-      return true
-    }
 
 
   const handleFormSubmit = async (data: EventFormData) => {

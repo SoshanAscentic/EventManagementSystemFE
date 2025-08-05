@@ -1,6 +1,4 @@
-import { useEffect } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
-import { useGetCurrentUserQuery } from '@/features/auth/api/authApi'
 import { useAuth } from '../shared/hooks/useAuth'
 
 interface ProtectedRouteProps {

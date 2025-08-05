@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -191,7 +190,9 @@ export const ProfileEditForm = ({ user, onSuccess, onCancel }: ProfileEditFormPr
               <div className="flex items-center">
                 <span className="text-blue-700 font-medium w-20">Email:</span>
                 <span className="text-blue-800">{user.email}</span>
-                <Icon name="Lock" className="ml-2 h-3 w-3 text-blue-500" title="Email cannot be changed" />
+                <span title="Email cannot be changed">
+                  <Icon name="Lock" className="ml-2 h-3 w-3 text-blue-500" />
+                </span>
               </div>
               <div className="flex items-center">
                 <span className="text-blue-700 font-medium w-20">Phone:</span>

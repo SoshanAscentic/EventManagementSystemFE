@@ -26,7 +26,7 @@ export interface HeaderProps {
 export const Header = ({ className }: HeaderProps) => {
   const navigate = useNavigate()
   const dispatch = useAppDispatch()
-  const { user, isAuthenticated, hasPermission } = useAuth()
+  const { user, isAuthenticated } = useAuth()
   const [logout, { isLoading: isLoggingOut }] = useLogoutMutation()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [notificationOpen, setNotificationOpen] = useState(false)

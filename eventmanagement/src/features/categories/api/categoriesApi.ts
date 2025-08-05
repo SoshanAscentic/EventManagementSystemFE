@@ -65,7 +65,7 @@ export const categoriesApi = baseApi.injectEndpoints({
       }),
       providesTags: (result) => [
         { type: 'Category', id: 'LIST' },
-        ...(result?.data?.data || []).map(({ id }) => ({ type: 'Category' as const, id })),
+        ...(result?.data?.data?.items || []).map(({ id }) => ({ type: 'Category' as const, id })),
       ],
     }),
 
@@ -80,7 +80,7 @@ export const categoriesApi = baseApi.injectEndpoints({
 
     getCategory: builder.query<ApiResponse<Category>, number>({
       query: (id) => `/categories/${id}`,
-      providesTags: (result, error, id) => [{ type: 'Category', id }],
+      providesTags: (_result, _error, id) => [{ type: 'Category', id }],
     }),
 
     // ===== CREATE/UPDATE/DELETE OPERATIONS (Admin only) =====
@@ -103,7 +103,7 @@ export const categoriesApi = baseApi.injectEndpoints({
         method: 'PUT',
         body: categoryData,
       }),
-      invalidatesTags: (result, error, { id }) => [
+      invalidatesTags: (_result, _error, { id }) => [
         { type: 'Category', id },
         { type: 'Category', id: 'LIST' },
         { type: 'Category', id: 'ACTIVE' },
@@ -115,7 +115,7 @@ export const categoriesApi = baseApi.injectEndpoints({
         url: `/categories/${id}`,
         method: 'DELETE',
       }),
-      invalidatesTags: (result, error, id) => [
+      invalidatesTags: (_result, _error, id) => [
         { type: 'Category', id },
         { type: 'Category', id: 'LIST' },
         { type: 'Category', id: 'ACTIVE' },
@@ -130,7 +130,7 @@ export const categoriesApi = baseApi.injectEndpoints({
         method: 'PATCH',
         body: { isActive },
       }),
-      invalidatesTags: (result, error, { id }) => [
+      invalidatesTags: (_result, _error, { id }) => [
         { type: 'Category', id },
         { type: 'Category', id: 'LIST' },
         { type: 'Category', id: 'ACTIVE' },

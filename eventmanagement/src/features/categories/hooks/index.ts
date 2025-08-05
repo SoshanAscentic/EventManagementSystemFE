@@ -4,15 +4,25 @@ import {
   useGetActiveCategoriesQuery,
   useCreateCategoryMutation,
   categoriesApi,
+  type Category,
+  type CreateCategoryRequest,
+  type GetCategoriesParams,
 } from '../api/categoriesApi'
 import { useAppDispatch } from '@/app/hooks'
 import { useAuth } from '@/shared/hooks/useAuth'
 import { useDebounce } from '@/shared/hooks/useDebounce'
-import type { 
-  CategoriesQueryParams, 
-  CreateCategoryRequest,
-  CategoryFilters,
-} from '../types'
+
+// ===== TYPE DEFINITIONS =====
+
+export interface CategoryFilters {
+  searchTerm: string
+  activeOnly: boolean
+  hasEvents: boolean
+}
+
+interface CategoryTreeNode extends Category {
+  children: CategoryTreeNode[]
+}
 
 // ===== OPTIMIZED QUERIES =====
 
@@ -36,7 +46,7 @@ export const useCategorySearch = () => {
   
   const { data: searchResults, isLoading } = useGetCategoriesQuery({
     searchTerm: debouncedSearchTerm,
-    activeOnly: true,
+    isActive: true,
   }, {
     skip: debouncedSearchTerm.length < 2,
   })
@@ -44,7 +54,7 @@ export const useCategorySearch = () => {
   return {
     searchTerm,
     setSearchTerm,
-    searchResults: searchResults?.data || [],
+    searchResults: searchResults?.data?.data?.items || [],
     isLoading,
   }
 }
@@ -122,10 +132,9 @@ export const useCategoryFilters = (initialFilters: CategoryFilters = {
   }, [filters, initialFilters])
   
   // Convert to API params
-  const apiParams = useMemo((): CategoriesQueryParams => ({
+  const apiParams = useMemo((): GetCategoriesParams => ({
     searchTerm: filters.searchTerm || undefined,
-    activeOnly: filters.activeOnly,
-    includeEventCount: true,
+    isActive: filters.activeOnly,
   }), [filters])
   
   return {
@@ -144,25 +153,31 @@ export const useCategoryFilters = (initialFilters: CategoryFilters = {
  */
 export const useCategoryTree = () => {
   const { data: categoriesData } = useGetCategoriesQuery({
-    includeEventCount: true,
+    pageSize: 1000, // Get all categories for tree building
   })
   
   const categoryTree = useMemo(() => {
-    if (!categoriesData?.data) return []
+    if (!categoriesData?.data?.data?.items) return []
     
-    const categories = categoriesData.data
-    const categoryMap = new Map(categories.map(cat => [cat.id, { ...cat, children: [] }]))
-    const rootCategories: any[] = []
+    const categories = categoriesData.data.data.items
+    const categoryMap = new Map<number, CategoryTreeNode>()
     
+    // Initialize all categories with empty children arrays
+    categories.forEach(cat => {
+      categoryMap.set(cat.id, { ...cat, children: [] })
+    })
+    
+    const rootCategories: CategoryTreeNode[] = []
+    
+    // Build the tree structure
     categories.forEach(category => {
-      if (category.parentId) {
-        const parent = categoryMap.get(category.parentId)
-        if (parent) {
-          parent.children.push(categoryMap.get(category.id))
-        }
-      } else {
-        rootCategories.push(categoryMap.get(category.id))
-      }
+      const categoryNode = categoryMap.get(category.id)
+      if (!categoryNode) return
+      
+      // Note: Based on your Category interface, there's no parentId field
+      // If you need hierarchical categories, you'll need to add parentId to the Category interface
+      // For now, treating all categories as root level
+      rootCategories.push(categoryNode)
     })
     
     return rootCategories
@@ -170,7 +185,7 @@ export const useCategoryTree = () => {
   
   return {
     categoryTree,
-    flatCategories: categoriesData?.data || [],
+    flatCategories: categoriesData?.data?.data?.items || [],
     isLoading: !categoriesData,
   }
 }
@@ -211,7 +226,6 @@ export const useCategoryValidation = () => {
       isActive: Boolean(data.isActive ?? true),
       color: data.color || undefined,
       icon: data.icon || undefined,
-      parentId: data.parentId ? Number(data.parentId) : undefined,
     }
   }, [])
   
@@ -245,7 +259,7 @@ export const useCategoryCacheManagement = () => {
   }, [dispatch])
   
   const prefetchCategory = useCallback((categoryId: number) => {
-    dispatch(categoriesApi.util.prefetch('getCategoryById', categoryId, { force: false }))
+    dispatch(categoriesApi.util.prefetch('getCategory', categoryId, { force: false }))
   }, [dispatch])
   
   return {

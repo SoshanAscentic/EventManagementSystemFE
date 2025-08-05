@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback } from 'react'
 import { useLocation } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -34,7 +34,6 @@ export const UserManagementPage = () => {
     refetchOnMountOrArgChange: false,
     refetchOnFocus: false,
     refetchOnReconnect: false,
-    keepUnusedDataFor: 60,
   })
 
   // Fetch selected user details
@@ -61,12 +60,10 @@ export const UserManagementPage = () => {
     setCurrentPage(1) // Reset to first page when searching
   }, [searchInput])
 
-  // Handle Enter key press
-  const handleKeyPress = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      executeSearch()
-    }
-  }, [executeSearch])
+  // Handle search input change
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchInput(value)
+  }, [])
 
   // Handle clear search
   const handleClearSearch = useCallback(() => {
@@ -154,8 +151,7 @@ export const UserManagementPage = () => {
               <div className="flex gap-2">
                 <SearchBox
                   value={searchInput}
-                  onChange={setSearchInput}
-                  onKeyPress={handleKeyPress}
+                  onChange={handleSearchChange}
                   placeholder="Search users..."
                   className="flex-1"
                 />

@@ -38,7 +38,7 @@ export const usersApi = baseApi.injectEndpoints({
 
     // ===== ADMIN USER MANAGEMENT =====
 
-    getUsers: builder.query<ApiResponse<PagedResponse<UserDto>>, GetUsersRequest>({
+    getUsers: builder.query<ApiResponse<PagedResponse<UserDto>['data']>, GetUsersRequest>({
       query: (params) => {
         const cleanedParams: Record<string, any> = {}
         if (params.searchTerm) cleanedParams.searchTerm = params.searchTerm
@@ -54,18 +54,28 @@ export const usersApi = baseApi.injectEndpoints({
       },
       providesTags: (result) => [
         { type: 'User', id: 'LIST' },
+        // Fixed: Access items through the correct nested structure
         ...(result?.data?.items || []).map(({ id }) => ({ type: 'User' as const, id })),
       ],
-      // Add this to prevent caching issues
+      // Fixed: Ensure proper serialization for caching
       serializeQueryArgs: ({ queryArgs }) => {
         const { searchTerm, pageNumber, pageSize, ascending } = queryArgs
-        return { searchTerm: searchTerm || '', pageNumber, pageSize, ascending }
+        return { 
+          searchTerm: searchTerm || '', 
+          pageNumber: pageNumber || 1, 
+          pageSize: pageSize || 10, 
+          ascending: ascending !== undefined ? ascending : true 
+        }
+      },
+      // Add transform response to handle nested structure
+      transformResponse: (response: ApiResponse<PagedResponse<UserDto>['data']>) => {
+        return response
       },
     }),
 
     getUserById: builder.query<ApiResponse<UserDto>, number>({
       query: (userId) => `/users/${userId}`,
-      providesTags: (result, error, userId) => [{ type: 'User', id: userId }],
+      providesTags: (_result, _error, userId) => [{ type: 'User', id: userId }],
     }),
   }),
 })

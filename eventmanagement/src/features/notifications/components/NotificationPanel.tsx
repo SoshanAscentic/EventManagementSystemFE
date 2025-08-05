@@ -60,7 +60,7 @@ const eventTypeConfigs: Record<string, { emoji: string, description: string }> =
 export const NotificationPanel = () => {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
-  const { notifications, unreadCount, connectionStatus } = useAppSelector(state => state.notifications)
+  const { notifications, unreadCount } = useAppSelector(state => state.notifications)
   const [filter, setFilter] = useState<'all' | 'unread' | 'important'>('all')
   const [signalRStatus, setSignalRStatus] = useState(signalRService.connectionStatus)
 
@@ -166,7 +166,7 @@ export const NotificationPanel = () => {
     const testNotifications = [
       {
         id: `test-event-created-${Date.now()}`,
-        type: 'success',
+        type: 'success' as const,
         title: '🎉 New Event Available',
         message: 'A new workshop "Advanced React Patterns" has been created and is now open for registration.',
         timestamp: Date.now(),
@@ -176,7 +176,7 @@ export const NotificationPanel = () => {
       },
       {
         id: `test-registration-confirmed-${Date.now()}`,
-        type: 'success', 
+        type: 'success' as const, 
         title: '✅ Registration Confirmed',
         message: 'Your registration for "JavaScript Conference 2025" has been confirmed. Event starts on Dec 15, 2025.',
         timestamp: Date.now(),
@@ -186,7 +186,7 @@ export const NotificationPanel = () => {
       },
       {
         id: `test-event-reminder-${Date.now()}`,
-        type: 'warning',
+        type: 'warning' as const,
         title: '⏰ Event Reminder', 
         message: 'Reminder: "React Workshop" starts in 2 hours. Don\'t forget to join!',
         timestamp: Date.now(),

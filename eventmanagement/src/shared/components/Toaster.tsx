@@ -5,6 +5,14 @@ import { Icon } from '@/components/atoms'
 import { cn } from '@/lib/utils'
 import { createSelector } from '@reduxjs/toolkit'
 
+// Define the notification interface locally to avoid conflicts
+interface ToastNotification {
+  id: string
+  title: string
+  message: string
+  type: 'success' | 'error' | 'warning' | 'info'
+}
+
 // Memoized selector to prevent unnecessary rerenders
 const selectToastNotifications = createSelector(
   [(state: any) => state.notifications.notifications],
@@ -21,7 +29,7 @@ export const Toaster = () => {
 
   return (
     <div className="fixed top-4 right-4 z-50 space-y-2">
-      {notifications.map(notification => (
+      {notifications.map((notification: ToastNotification) => (
         <Toast
           key={notification.id}
           notification={notification}
@@ -33,7 +41,7 @@ export const Toaster = () => {
 }
 
 interface ToastProps {
-  notification: any
+  notification: ToastNotification
   onRemove: (id: string) => void
 }
 

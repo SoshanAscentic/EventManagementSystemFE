@@ -4,10 +4,9 @@ import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { SearchBox } from '@/components/molecules'
 import { EventCard } from '@/components/organisms'
-import { Icon, Badge, Spinner } from '@/components/atoms'
+import { Icon, Spinner } from '@/components/atoms'
 import { useGetEventsQuery } from '@/features/events/api/eventsApi'
 import { useGetActiveCategoriesQuery } from '@/features/categories/api/categoriesApi'
-import { EventDto } from '@/shared/types/domain'
 import { EVENT_TYPES } from '@/shared/utils/constants'
 
 export const EventsPage = () => {
@@ -55,7 +54,6 @@ export const EventsPage = () => {
     refetchOnMountOrArgChange: false,
     refetchOnFocus: false,
     refetchOnReconnect: false,
-    keepUnusedDataFor: 60,
   })
 
   const categories = categoriesData?.data || []
@@ -71,12 +69,10 @@ export const EventsPage = () => {
     setCurrentPage(1) // Reset to first page when searching
   }, [searchInput])
 
-  // Handle Enter key press - RENAME this function
-  const handleKeyPress = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      executeSearch()
-    }
-  }, [executeSearch])
+  // Handle search input change
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchInput(value)
+  }, [])
 
   // Handle clear search
   const handleClearSearch = useCallback(() => {
@@ -254,8 +250,7 @@ export const EventsPage = () => {
                 <SearchBox
                   placeholder="Search by title or description..."
                   value={searchInput}
-                  onChange={setSearchInput}
-                  onKeyPress={handleKeyPress}
+                  onChange={handleSearchChange}
                   className="flex-1"
                 />
                 <Button
@@ -353,7 +348,7 @@ export const EventsPage = () => {
               </Select>
             </div>
           </div>
-
+          
           {/* Filter Summary */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mt-6 pt-6 border-t border-gray-100 gap-4">
             <div className="flex items-center gap-4">
@@ -388,7 +383,7 @@ export const EventsPage = () => {
             )}
           </div>
         </div>
-
+        
         {/* Events Grid */}
         {events.length > 0 ? (
           <>

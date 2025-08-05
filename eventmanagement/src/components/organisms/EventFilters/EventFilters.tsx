@@ -1,4 +1,4 @@
-import { useState, useEffect, JSXElementConstructor, Key, ReactElement, ReactNode, ReactPortal } from 'react'
+import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { SearchBox } from '@/components/molecules'
@@ -24,9 +24,16 @@ interface EventFiltersProps {
   onClear: () => void
 }
 
+// Define proper type for category
+interface Category {
+  id: number
+  name: string
+  eventCount: number
+}
+
 export const EventFilters = ({ filters, onFilterChange, onClear }: EventFiltersProps) => {
-  const { data: categoriesResponse } = useGetCategoriesQuery({ activeOnly: true })
-  const categories = categoriesResponse?.data || []
+  const { data: categoriesResponse } = useGetCategoriesQuery({})
+  const categories = (categoriesResponse?.data || []) as Category[]
   
   const [isExpanded, setIsExpanded] = useState(false)
 
@@ -78,7 +85,7 @@ export const EventFilters = ({ filters, onFilterChange, onClear }: EventFiltersP
             className="w-full p-2 border rounded-lg"
           >
             <option value="">All Categories</option>
-            {categories.map((category: { id: Key | readonly string[] | null | undefined; name: string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<string | number | bigint | boolean | ReactPortal | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | null | undefined> | null | undefined; eventCount: string | number | bigint | boolean | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | ReactPortal | Promise<string | number | bigint | boolean | ReactPortal | ReactElement<unknown, string | JSXElementConstructor<any>> | Iterable<ReactNode> | null | undefined> | null | undefined }) => (
+            {categories.map((category) => (
               <option key={category.id} value={category.id}>
                 {category.name} ({category.eventCount})
               </option>
@@ -212,7 +219,7 @@ export const EventFilters = ({ filters, onFilterChange, onClear }: EventFiltersP
               )}
               {filters.categoryId && (
                 <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">
-                  Category: {categories.find((c: { id: number | undefined }) => c.id === filters.categoryId)?.name}
+                  Category: {categories.find(c => c.id === filters.categoryId)?.name}
                 </span>
               )}
               {filters.hasAvailableSpots && (

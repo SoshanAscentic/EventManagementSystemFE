@@ -37,7 +37,7 @@ export const MyRegistrationsPage = () => {
     // Filter by timeframe
     if (timeframeFilter === 'upcoming') {
       filtered = filtered.filter(reg => 
-        new Date(reg.eventStartDateTime) > new Date() && reg.status === 'Active'
+        new Date(reg.eventStartDateTime) > new Date() && reg.status === 'Registered'
       )
     } else if (timeframeFilter === 'past') {
       filtered = filtered.filter(reg => 
@@ -51,10 +51,10 @@ export const MyRegistrationsPage = () => {
   // Get statistics for display
   const statistics = useMemo(() => {
     const totalRegistrations = allRegistrations.length
-    const activeRegistrations = allRegistrations.filter(r => r.status === 'Active').length
+    const activeRegistrations = allRegistrations.filter(r => r.status === 'Registered').length
     const attendedEvents = allRegistrations.filter(r => r.attended === true).length
     const upcomingEvents = allRegistrations.filter(r => 
-      r.status === 'Active' && r.eventStartDateTime && new Date(r.eventStartDateTime) > new Date()
+      r.status === 'Registered' && r.eventStartDateTime && new Date(r.eventStartDateTime) > new Date()
     ).length
 
     return {
@@ -262,7 +262,7 @@ export const MyRegistrationsPage = () => {
                         </h3>
                         <Badge
                           className={
-                            registration.status === 'Active' 
+                            registration.status === 'Registered' 
                               ? 'bg-green-100 text-green-800 border-green-200' 
                               : registration.status === 'Cancelled'
                               ? 'bg-red-100 text-red-800 border-red-200'

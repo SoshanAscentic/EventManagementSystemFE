@@ -8,7 +8,7 @@ import { formatNumber, formatRelativeTime } from '@/shared/utils/formatters'
 
 export const DashboardPage = () => {
   const { data: dashboardData, isLoading: dashboardLoading, error: dashboardError } = useGetDashboardQuery()
-  const { data: alertsData, isLoading: alertsLoading } = useGetCapacityAlertsQuery({ threshold: 0.8 })
+  const { data: alertsData } = useGetCapacityAlertsQuery({ threshold: 0.8 })
 
   const dashboard = dashboardData?.data
   const alerts = alertsData?.data || []
@@ -167,7 +167,7 @@ export const DashboardPage = () => {
               <CardContent>
                 <div className="space-y-4">
                   {dashboard.recentRegistrations?.length > 0 ? (
-                    dashboard.recentRegistrations.map((registration, index) => (
+                    dashboard.recentRegistrations.map((registration) => (
                       <div
                         key={registration.id}
                         className="flex items-center justify-between p-4 border border-gray-100 rounded-xl bg-gradient-to-r from-gray-50 to-green-50/30 hover:from-white hover:to-green-50/50 transition-all duration-300"

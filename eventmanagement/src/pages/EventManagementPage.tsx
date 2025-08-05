@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -39,7 +39,6 @@ export const EventManagementPage = () => {
     refetchOnMountOrArgChange: false,
     refetchOnFocus: false,
     refetchOnReconnect: false,
-    keepUnusedDataFor: 60,
   })
 
   const events = eventsData?.data?.items || []
@@ -82,12 +81,11 @@ export const EventManagementPage = () => {
     setCurrentPage(1) // Reset to first page when searching
   }, [searchInput])
 
-  // Handle Enter key press
-  const handleKeyPress = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      executeSearch()
-    }
-  }, [executeSearch])
+  // Handle search input change with debounced search execution
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchInput(value)
+    // Optional: Add debounced search execution here if you want real-time search
+  }, [])
 
   // Handle clear search
   const handleClearSearch = useCallback(() => {
@@ -219,8 +217,7 @@ export const EventManagementPage = () => {
               <div className="flex gap-2">
                 <SearchBox
                   value={searchInput}
-                  onChange={setSearchInput}
-                  onKeyPress={handleKeyPress}
+                  onChange={handleSearchChange}
                   placeholder="Search by title..."
                   className="flex-1"
                 />

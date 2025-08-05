@@ -32,7 +32,7 @@ export const EventRegistrationPage = () => {
 
   // Find the user's registration for this event
   const userRegistration = registrationsData?.data?.items?.find(
-    reg => reg.eventId === eventId && reg.status === 'Active'
+    reg => reg.eventId === eventId && reg.status === 'Registered'
   )
 
   const handleRegistrationComplete = async (data: any) => {

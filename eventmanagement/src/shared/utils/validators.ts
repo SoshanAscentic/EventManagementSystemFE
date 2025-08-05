@@ -102,8 +102,7 @@ export const eventSchema = z.object({
     'Webinar',
     'Competition'
   ], {
-    required_error: 'Event type is required',
-    invalid_type_error: 'Please select a valid event type',
+    message: 'Event type is required'
   }),
   categoryId: z.number()
     .min(1, 'Category is required'),
@@ -298,7 +297,7 @@ export const notificationSchema = z.object({
   type: z.enum(['info', 'success', 'warning', 'error']),
   targetUsers: z.array(z.number().positive()).optional(),
   actionUrl: z.string().url('Invalid action URL').optional(),
-  data: z.record(z.any()).optional(),
+  data: z.record(z.string(), z.any()).optional(),
   scheduleFor: z.string()
     .refine((date) => !date || new Date(date) > new Date(), {
       message: 'Scheduled time must be in the future',

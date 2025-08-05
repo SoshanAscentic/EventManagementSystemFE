@@ -1,4 +1,3 @@
-import { useEffect } from 'react'
 import { AppRouter } from './router/AppRouter'
 import { AppProviders } from './app/providers/AppProviders'
 import { Toaster } from './shared/components/Toaster'
@@ -9,7 +8,6 @@ import { useSignalRConnection } from './shared/hooks/useSignalRConnection'
 function AppContent() {
   const { isLoading } = useAuth()
   
-  // ✅ Move SignalR initialization here, inside the Redux Provider context
   useSignalRConnection()
 
   // Show loading screen during initial auth check
@@ -33,7 +31,6 @@ function AppContent() {
 }
 
 function App() {
-  // ✅ Remove useSignalRConnection from here - it's now in AppContent
 
   return (
     <ErrorBoundary>

@@ -17,7 +17,7 @@ export const CreateEventPage = () => {
   const [createdEventId, setCreatedEventId] = useState<number | null>(null)
 
   // Fetch the created event to get updated image URLs
-  const { data: eventData, refetch: refetchEvent } = useGetEventByIdQuery(createdEventId!, {
+  useGetEventByIdQuery(createdEventId!, {
     skip: !createdEventId,
   })
 

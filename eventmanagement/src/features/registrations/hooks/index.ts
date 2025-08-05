@@ -28,7 +28,7 @@ export const useMyRegistrations = () => {
     // Filter by timeframe
     if (filters.timeframe === 'upcoming') {
       filtered = filtered.filter(reg => 
-        new Date(reg.eventStartDateTime) > new Date() && reg.status === 'Active'
+        new Date(reg.eventStartDateTime) > new Date() && reg.status === 'Registered'
       )
     } else if (filters.timeframe === 'past') {
       filtered = filtered.filter(reg => 

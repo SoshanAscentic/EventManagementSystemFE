@@ -72,7 +72,7 @@ export const authApi = baseApi.injectEndpoints({
         method: 'POST',
         body: credentials,
       }),
-      async onQueryStarted(arg, { queryFulfilled, dispatch }) {
+      async onQueryStarted(_arg, { queryFulfilled, dispatch }) {
         try {
           const { data } = await queryFulfilled
           if (data.success && data.data) {
@@ -107,7 +107,7 @@ export const authApi = baseApi.injectEndpoints({
         method: 'POST',
         body: userData,
       }),
-      async onQueryStarted(arg, { queryFulfilled, dispatch }) {
+      async onQueryStarted(_arg, { queryFulfilled, dispatch }) {
         try {
           const { data } = await queryFulfilled
           if (data.success && data.data) {
@@ -136,7 +136,7 @@ export const authApi = baseApi.injectEndpoints({
     
     getCurrentUser: builder.query<ApiResponse<LoginResponse>, void>({
       query: () => '/auth/me',
-      async onQueryStarted(arg, { queryFulfilled, dispatch }) {
+      async onQueryStarted(_arg, { queryFulfilled, dispatch }) {
         try {
           const { data } = await queryFulfilled
           if (data.success && data.data) {
@@ -166,7 +166,7 @@ export const authApi = baseApi.injectEndpoints({
         url: '/auth/logout',
         method: 'POST',
       }),
-      async onQueryStarted(arg, { dispatch }) {
+      async onQueryStarted(_arg, { dispatch }) {
         // Clear tokens and auth state immediately
         clearTokenCookies()
         dispatch(clearAuth())

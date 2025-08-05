@@ -1,18 +1,15 @@
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Icon, Badge, Spinner } from '@/components/atoms'
+import { Icon, Spinner } from '@/components/atoms'
 import { EventCard } from '@/components/organisms'
 import { useGetUpcomingEventsQuery, useGetEventsQuery } from '@/features/events/api/eventsApi'
 import { useGetActiveCategoriesQuery } from '@/features/categories/api/categoriesApi'
 import { useGetDashboardQuery } from '@/features/admin/api/adminApi'
 import { useGetUsersQuery } from '@/features/users/api/usersApi'
 import { useMemo } from 'react'
-import { useAppDispatch } from '@/app/hooks'
-import { addNotification } from '@/features/notifications/notificationSlice'
 
 export const HomePage = () => {
-  const dispatch = useAppDispatch()
 
   // Fetch upcoming events for featured section
   const { 
@@ -138,19 +135,8 @@ export const HomePage = () => {
     })
   }, [categories, allEvents])
 
-  const handleRegister = (eventId: number) => {
+  const handleRegister = () => {
     // This will be implemented with the registration API
-  }
-
-  const testNotification = () => {
-    dispatch(addNotification({
-      id: Date.now().toString(),
-      type: 'success',
-      title: 'Test Notification',
-      message: 'This is a test notification to verify the system works!',
-      timestamp: Date.now(),
-      read: false
-    }))
   }
 
   // Loading state

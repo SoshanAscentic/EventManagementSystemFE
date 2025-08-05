@@ -1,5 +1,4 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react'
-import type { RootState } from '../store/store'
 import { clearAuth, setLoading } from '../slices/authSlice'
 import { getTokenFromCookie } from '@/features/auth/api/authApi'
 

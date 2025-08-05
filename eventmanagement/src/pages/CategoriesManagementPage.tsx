@@ -6,10 +6,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Icon, Spinner, Badge } from '@/components/atoms'
 import { SearchBox } from '@/components/molecules'
-import { useGetCategoriesQuery } from '@/features/categories/api/categoriesApi'
+import { useGetCategoriesQuery, type Category } from '@/features/categories/api/categoriesApi'
 import { useGetEventsQuery } from '@/features/events/api/eventsApi'
 import { useAuth } from '@/shared/hooks/useAuth'
 import { useDebounce } from '@/shared/hooks/useDebounce'
+
+// Define enhanced category type
+interface EnhancedCategory extends Category {
+  eventCount: number
+  activeEventCount: number
+  totalRegistrations: number
+  averageCapacity: number
+}
 
 export const CategoriesManagementPage = () => {
   const location = useLocation()
@@ -21,14 +29,14 @@ export const CategoriesManagementPage = () => {
   
   const debouncedSearchTerm = useDebounce(searchTerm, 300)
 
-  // Fetch ALL categories (backend doesn't support pagination)
+  // Fetch ALL categories (using proper params)
   const { 
     data: allCategoriesData, 
     isLoading: categoriesLoading, 
     error,
     refetch 
   } = useGetCategoriesQuery({
-    activeOnly: false // Get both active and inactive categories
+    isActive: undefined // Get both active and inactive categories
   })
 
   // Fetch all events to calculate category statistics
@@ -40,17 +48,21 @@ export const CategoriesManagementPage = () => {
     pageSize: 1000, // Get a large number to calculate accurate stats
   })
 
-  const allCategories = allCategoriesData?.data || []
+  // Fix: Handle the correct data structure
+  const allCategories = allCategoriesData?.data?.data?.items || allCategoriesData?.data || []
   const allEvents = eventsResponse?.data?.items || []
 
   // Calculate enhanced category data with event counts
-  const enhancedCategories = useMemo(() => {
-    return allCategories.map(category => {
-      const categoryEvents = allEvents.filter(event => event.categoryId === category.id)
-      const activeEvents = categoryEvents.filter(event => 
+  const enhancedCategories = useMemo((): EnhancedCategory[] => {
+    if (!Array.isArray(allCategories)) {
+      return []
+    }
+    return allCategories.map((category: Category) => {
+      const categoryEvents = allEvents.filter((event: any) => event.categoryId === category.id)
+      const activeEvents = categoryEvents.filter((event: any) => 
         event.isRegistrationOpen && new Date(event.startDateTime) > new Date()
       )
-      const totalRegistrations = categoryEvents.reduce((sum, event) => sum + event.currentRegistrations, 0)
+      const totalRegistrations = categoryEvents.reduce((sum: number, event: any) => sum + event.currentRegistrations, 0)
 
       return {
         ...category,
@@ -58,7 +70,7 @@ export const CategoriesManagementPage = () => {
         activeEventCount: activeEvents.length,
         totalRegistrations,
         averageCapacity: categoryEvents.length > 0 
-          ? Math.round(categoryEvents.reduce((sum, event) => sum + event.capacity, 0) / categoryEvents.length)
+          ? Math.round(categoryEvents.reduce((sum: number, event: any) => sum + event.capacity, 0) / categoryEvents.length)
           : 0
       }
     })
@@ -71,7 +83,7 @@ export const CategoriesManagementPage = () => {
     // Search filter
     if (debouncedSearchTerm) {
       const searchLower = debouncedSearchTerm.toLowerCase()
-      filtered = filtered.filter(category => 
+      filtered = filtered.filter((category: EnhancedCategory) => 
         category.name.toLowerCase().includes(searchLower) ||
         (category.description && category.description.toLowerCase().includes(searchLower))
       )
@@ -79,7 +91,7 @@ export const CategoriesManagementPage = () => {
 
     // Status filter
     if (statusFilter !== 'all') {
-      filtered = filtered.filter(category => {
+      filtered = filtered.filter((category: EnhancedCategory) => {
         switch (statusFilter) {
           case 'active':
             return category.isActive
@@ -237,7 +249,7 @@ export const CategoriesManagementPage = () => {
       {paginatedCategories.length > 0 ? (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-fade-in" style={{animationDelay: '0.2s'}}>
-            {paginatedCategories.map((category, index) => (
+            {paginatedCategories.map((category: EnhancedCategory, index: number) => (
               <div key={category.id} className="animate-fade-in" style={{animationDelay: `${0.05 * index}s`}}>
                 <Card className="h-full bg-white hover:shadow-lg transition-all duration-300 hover:-translate-y-1 border border-gray-100">
                   <CardContent className="p-6">
@@ -315,8 +327,6 @@ export const CategoriesManagementPage = () => {
                           </Button>
                         )}
                       </div>
-
-                      
                     </div>
                   </CardContent>
                 </Card>

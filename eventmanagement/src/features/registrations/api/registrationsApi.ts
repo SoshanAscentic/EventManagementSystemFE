@@ -60,7 +60,7 @@ export const registrationsApi = baseApi.injectEndpoints({
         method: 'POST',
         body: data,
       }),
-      invalidatesTags: (result, error, { eventId }) => [
+      invalidatesTags: (_result, _error, { eventId }) => [
         { type: 'Registration', id: 'LIST' },
         { type: 'Event', id: 'LIST' },
         { type: 'Event', id: eventId }, // Invalidate the specific event
@@ -74,7 +74,7 @@ export const registrationsApi = baseApi.injectEndpoints({
         method: 'DELETE',
         body: { reason },
       }),
-      invalidatesTags: (result, error, { registrationId }) => {
+      invalidatesTags: (_result, _error, { registrationId }) => {
         // We need to find which event this registration belongs to
         // Since we don't have eventId in the request, we'll invalidate all events
         return [
@@ -139,7 +139,7 @@ export const registrationsApi = baseApi.injectEndpoints({
           params: cleaned,
         }
       },
-      providesTags: (result, error, { eventId }) => [
+      providesTags: (_result, _error, { eventId }) => [
         { type: 'Registration', id: `EVENT_${eventId}` }
       ],
     }),

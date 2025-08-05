@@ -1,9 +1,8 @@
-//src/pages/EventDetailPage.tsx
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Avatar, AvatarFallback, AvatarImage, Badge, Icon, Spinner } from '@/components/atoms'
+import { Badge, Icon, Spinner } from '@/components/atoms'
 import { EventCard } from '@/components/organisms'
 import { useGetEventByIdQuery, useGetUpcomingEventsQuery } from '@/features/events/api/eventsApi'
 import { useRegisterForEventMutation, useCancelRegistrationMutation } from '@/features/registrations/api/registrationsApi'
@@ -47,7 +46,7 @@ const getMockAgenda = (startDateTime: string, endDateTime: string) => {
 export const EventDetailPage = () => {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { isAuthenticated, user } = useAuth()
+  const { isAuthenticated } = useAuth()
   const [showCancelDialog, setShowCancelDialog] = useState(false)
 
   const eventId = id ? parseInt(id) : 0
@@ -58,7 +57,6 @@ export const EventDetailPage = () => {
   const { 
     isRegistered, 
     registration, 
-    canCancel, 
     isLoading: registrationLoading 
   } = useRegistrationStatus(eventId)
 

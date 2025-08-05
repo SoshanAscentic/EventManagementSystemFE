@@ -89,7 +89,6 @@ export const CreateCategoryForm = () => {
                 placeholder="Enter category name"
                 className="mt-1"
                 {...register('name')}
-                error={errors.name?.message}
               />
               {errors.name && (
                 <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>

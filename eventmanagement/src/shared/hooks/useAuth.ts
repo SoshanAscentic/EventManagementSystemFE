@@ -1,7 +1,7 @@
 import { useMemo, useCallback, useEffect } from 'react'
 import { useAppSelector, useAppDispatch } from '@/app/hooks'
 import { useGetCurrentUserQuery } from '@/features/auth/api/authApi'
-import { setAuth, clearAuth, setLoading } from '@/app/slices/authSlice'
+import { setAuth, clearAuth } from '@/app/slices/authSlice'
 import type { RootState } from '@/app/store/store'
 
 interface UserPermissions {
@@ -55,7 +55,16 @@ export const useAuth = () => {
   useEffect(() => {
     if (data?.success && data.data && !isAuthenticated) {
       console.log('Setting auth from API response:', data.data)
-      dispatch(setAuth(data.data))
+      const userData = {
+        id: data.data.userId,
+        email: data.data.email,
+        firstName: data.data.firstName,
+        lastName: data.data.lastName,
+        roles: data.data.roles,
+        isActive: true,
+        createdAt: new Date().toISOString(),
+      };
+      dispatch(setAuth(userData))
     } else if (error && !isAuthenticated && !isInitialized) {
       console.log('Auth query failed, clearing auth state')
       dispatch(clearAuth())
@@ -78,7 +87,7 @@ export const useAuth = () => {
 
   // Show loading during initial auth check OR during any auth-related API calls
   const isLoading = (!isInitialized && (authLoading || queryLoading)) || 
-                   (isInitialized && queryLoading && !isAuthenticated)
+                  (isInitialized && queryLoading && !isAuthenticated)
 
   return {
     user,
