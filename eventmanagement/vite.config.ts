@@ -10,6 +10,30 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  build: {
+    // Reduce the number of chunks
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Group vendor libraries
+          vendor: ['react', 'react-dom'],
+          ui: ['@radix-ui/react-alert-dialog', '@radix-ui/react-avatar', '@radix-ui/react-checkbox'],
+          routing: ['react-router-dom'],
+          state: ['@reduxjs/toolkit', 'react-redux'],
+          utils: ['date-fns', 'clsx', 'tailwind-merge'],
+        },
+        chunkFileNames: 'assets/[name]-[hash].js',
+        entryFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: 'assets/[name]-[hash].[ext]'
+      }
+    },
+    // Increase chunk size warning limit
+    chunkSizeWarningLimit: 1000,
+    // Optimize dependencies
+    commonjsOptions: {
+      transformMixedEsModules: true
+    }
+  },
   server: {
     port: 5173,
     host: true,

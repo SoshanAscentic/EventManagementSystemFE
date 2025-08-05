@@ -37,6 +37,16 @@ jobs:
           cd eventmanagement
           npm run build
           
+      - name: Clean up build artifacts
+        run: |
+          cd eventmanagement/dist
+          # Remove source maps in production
+          find . -name "*.map" -delete
+          # Count files for debugging
+          echo "Total files in dist: $(find . -type f | wc -l)"
+          echo "Largest files:"
+          find . -type f -exec ls -la {} + | sort -k5 -nr | head -10
+          
       - name: Build And Deploy
         id: builddeploy
         uses: Azure/static-web-apps-deploy@v1
