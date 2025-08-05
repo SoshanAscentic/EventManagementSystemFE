@@ -10,54 +10,6 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
-  esbuild: {
-    drop: ['console', 'debugger'],
-  },
-  build: {
-    sourcemap: false,
-    
-    // Inline EVERYTHING possible
-    assetsInlineLimit: 100000, // 100KB - inline almost all images
-    
-    // Use esbuild for fast minification
-    minify: 'esbuild',
-    
-    rollupOptions: {
-      output: {
-        // FORCE everything into single files
-        manualChunks: () => 'bundle',
-        chunkFileNames: 'bundle.js',
-        entryFileNames: 'bundle.js',
-        assetFileNames: (assetInfo) => {
-          if (!assetInfo.name) return 'asset[extname]'
-          
-          if (assetInfo.name.endsWith('.css')) {
-            return 'bundle.css'
-          }
-          
-          // For any remaining assets, use simple names
-          const ext = assetInfo.name.split('.').pop()
-          return `asset.${ext}`
-        }
-      },
-      
-      // Aggressive tree shaking
-      treeshake: {
-        preset: 'smallest',
-        propertyReadSideEffects: false,
-        tryCatchDeoptimization: false
-      }
-    },
-    
-    // Additional optimizations
-    commonjsOptions: {
-      transformMixedEsModules: true
-    },
-    
-    // Disable all splitting
-    chunkSizeWarningLimit: 50000 // Suppress warnings for large bundles
-  },
-  
   server: {
     port: 5173,
     host: true,
