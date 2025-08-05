@@ -40,13 +40,19 @@ jobs:
       - name: Clean up build artifacts
         run: |
           cd eventmanagement/dist
-          # Remove source maps in production
+          # Remove source maps and other unnecessary files
           find . -name "*.map" -delete
+          find . -name "*.txt" -delete
+          find . -name ".DS_Store" -delete
+          # Remove empty directories
+          find . -type d -empty -delete
           # Count files for debugging
           echo "Total files in dist: $(find . -type f | wc -l)"
           echo "Largest files:"
           find . -type f -exec ls -la {} + | sort -k5 -nr | head -10
-          
+          echo "File breakdown by type:"
+          find . -type f | sed 's/.*\.//' | sort | uniq -c | sort -nr
+
       - name: Build And Deploy
         id: builddeploy
         uses: Azure/static-web-apps-deploy@v1

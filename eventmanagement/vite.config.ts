@@ -11,28 +11,66 @@ export default defineConfig({
     },
   },
   build: {
-    // Reduce the number of chunks
     rollupOptions: {
       output: {
         manualChunks: {
-          // Group vendor libraries
-          vendor: ['react', 'react-dom'],
-          ui: ['@radix-ui/react-alert-dialog', '@radix-ui/react-avatar', '@radix-ui/react-checkbox'],
-          routing: ['react-router-dom'],
-          state: ['@reduxjs/toolkit', 'react-redux'],
-          utils: ['date-fns', 'clsx', 'tailwind-merge'],
+          // Core React libraries
+          'react-vendor': ['react', 'react-dom'],
+          
+          // Routing and state management
+          'app-core': ['react-router-dom', '@reduxjs/toolkit', 'react-redux'],
+          
+          // UI library - group all Radix components
+          'ui-components': [
+            '@radix-ui/react-alert-dialog',
+            '@radix-ui/react-avatar', 
+            '@radix-ui/react-checkbox',
+            '@radix-ui/react-dropdown-menu',
+            '@radix-ui/react-label',
+            '@radix-ui/react-navigation-menu',
+            '@radix-ui/react-progress',
+            '@radix-ui/react-scroll-area',
+            '@radix-ui/react-select',
+            '@radix-ui/react-slot',
+            '@radix-ui/react-toast'
+          ],
+          
+          // Form handling
+          'forms': ['react-hook-form', '@hookform/resolvers', 'zod'],
+          
+          // Utilities
+          'utils': ['date-fns', 'clsx', 'tailwind-merge', 'sonner'],
+          
+          // SignalR
+          'signalr': ['@microsoft/signalr']
         },
-        chunkFileNames: 'assets/[name]-[hash].js',
-        entryFileNames: 'assets/[name]-[hash].js',
-        assetFileNames: 'assets/[name]-[hash].[ext]'
+        chunkFileNames: 'assets/js/[name]-[hash].js',
+        entryFileNames: 'assets/js/[name]-[hash].js',
+        assetFileNames: (assetInfo) => {
+          // Handle undefined name case
+          if (!assetInfo.name) {
+            return 'assets/[name]-[hash][extname]'
+          }
+          
+          const info = assetInfo.name.split('.')
+          const ext = info[info.length - 1]
+          
+          if (/\.(css)$/.test(assetInfo.name)) {
+            return `assets/css/[name]-[hash][extname]`
+          }
+          if (/\.(png|jpe?g|svg|gif|tiff|bmp|ico)$/i.test(assetInfo.name)) {
+            return `assets/images/[name]-[hash][extname]`
+          }
+          return `assets/${ext}/[name]-[hash][extname]`
+        }
       }
     },
-    // Increase chunk size warning limit
     chunkSizeWarningLimit: 1000,
-    // Optimize dependencies
     commonjsOptions: {
       transformMixedEsModules: true
-    }
+    },
+    // Reduce asset inlining to avoid too many small files
+    assetsInlineLimit: 0
   },
   server: {
     port: 5173,
