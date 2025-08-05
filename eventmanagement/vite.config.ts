@@ -10,53 +10,52 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  esbuild: {
+    drop: ['console', 'debugger'],
+  },
   build: {
     sourcemap: false,
-    chunkSizeWarningLimit: 5000,
     
-    // Inline more assets to reduce file count
-    assetsInlineLimit: 50000, // 50KB - very aggressive inlining
+    // Inline EVERYTHING possible
+    assetsInlineLimit: 100000, // 100KB - inline almost all images
+    
+    // Use esbuild for fast minification
+    minify: 'esbuild',
     
     rollupOptions: {
       output: {
-        // Create only 2-3 chunks instead of many
-        manualChunks: (id) => {
-          // Only split into vendor and app - minimizes to ~3 files total
-          if (id.includes('node_modules')) {
-            // Keep heavy libraries separate for better caching
-            if (id.includes('react') || id.includes('react-dom')) {
-              return 'vendor' // This will be your largest, most stable chunk
-            }
-            return 'vendor' // Everything else from node_modules
-          }
-          // All your app code in one chunk
-          return 'app'
-        },
-        
-        // Simple naming to minimize files
-        chunkFileNames: '[name].js',
-        entryFileNames: '[name].js',
+        // FORCE everything into single files
+        manualChunks: () => 'bundle',
+        chunkFileNames: 'bundle.js',
+        entryFileNames: 'bundle.js',
         assetFileNames: (assetInfo) => {
-          if (assetInfo.name?.endsWith('.css')) {
-            return 'styles.css'
+          if (!assetInfo.name) return 'asset[extname]'
+          
+          if (assetInfo.name.endsWith('.css')) {
+            return 'bundle.css'
           }
-          // Inline small assets, keep only essential ones
-          return 'assets/[name][extname]'
+          
+          // For any remaining assets, use simple names
+          const ext = assetInfo.name.split('.').pop()
+          return `asset.${ext}`
         }
+      },
+      
+      // Aggressive tree shaking
+      treeshake: {
+        preset: 'smallest',
+        propertyReadSideEffects: false,
+        tryCatchDeoptimization: false
       }
     },
     
+    // Additional optimizations
     commonjsOptions: {
       transformMixedEsModules: true
     },
     
-    // Aggressive minification
-    minify: 'terser',
-  },
-  
-  // Alternative way to remove console logs
-  esbuild: {
-    drop: ['console', 'debugger'],
+    // Disable all splitting
+    chunkSizeWarningLimit: 50000 // Suppress warnings for large bundles
   },
   
   server: {
