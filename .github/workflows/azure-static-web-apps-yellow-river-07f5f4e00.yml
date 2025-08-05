@@ -12,113 +12,26 @@ on:
 jobs:
   build_and_deploy_job:
     if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
-    runs-on: ubuntu-latest  
+    runs-on: ubuntu-latest
     name: Build and Deploy Job
     steps:
       - uses: actions/checkout@v3
         with:
           submodules: true
           lfs: false
-          
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: './eventmanagement/package-lock.json'
-          
-      - name: Install dependencies
-        run: |
-          cd eventmanagement
-          npm ci --only=production
-          npm install
-
-      - name: Build application
-        run: |
-          cd eventmanagement
-          NODE_ENV=production npm run build
-          
-      - name: COMPREHENSIVE DEBUG - Before cleanup
-        run: |
-          cd eventmanagement/dist
-          echo "=== COMPLETE FILE INVENTORY BEFORE CLEANUP ==="
-          
-          # Count all files including hidden
-          echo "Total files (including hidden): $(find . -type f | wc -l)"
-          echo "Total directories: $(find . -type d | wc -l)"
-          echo "Total size: $(du -sh . | cut -f1)"
-          
-          # List ALL files with details
-          echo "=== ALL FILES WITH SIZES ==="
-          find . -type f -exec ls -lah {} \; | sort -k5 -hr
-          
-          # Check for hidden files specifically
-          echo "=== HIDDEN FILES ==="
-          find . -name ".*" -type f
-          
-          # Check directory structure
-          echo "=== DIRECTORY STRUCTURE ==="
-          find . -type d | sort
-          
-          # Check for any remaining node_modules
-          echo "=== NODE_MODULES CHECK ==="
-          find . -name "node_modules" -type d || echo "No node_modules found"
-          
-          # Check for any large directories
-          echo "=== LARGEST DIRECTORIES ==="
-          du -h --max-depth=2 . | sort -hr | head -10
-
-      - name: NUCLEAR CLEANUP - Remove everything except essentials
-        run: |
-          cd eventmanagement/dist
-          
-          echo "=== STARTING NUCLEAR CLEANUP ==="
-          
-          # First, identify and preserve only essential files
-          mkdir -p /tmp/essential
-          
-          # Copy only the absolute essentials
-          find . -name "index.html" -exec cp {} /tmp/essential/ \;
-          find . -name "*.js" -not -path "*/node_modules/*" -exec cp {} /tmp/essential/ \;
-          find . -name "*.css" -not -path "*/node_modules/*" -exec cp {} /tmp/essential/ \;
-          
-          # Copy any images that are small (less than 1MB)
-          find . -name "*.png" -size -1M -exec cp {} /tmp/essential/ \; 2>/dev/null || true
-          find . -name "*.jpg" -size -1M -exec cp {} /tmp/essential/ \; 2>/dev/null || true
-          find . -name "*.svg" -size -1M -exec cp {} /tmp/essential/ \; 2>/dev/null || true
-          find . -name "*.ico" -size -1M -exec cp {} /tmp/essential/ \; 2>/dev/null || true
-          
-          # NUCLEAR: Remove everything
-          rm -rf ./* .*  2>/dev/null || true
-          
-          # Restore only essentials
-          cp /tmp/essential/* . 2>/dev/null || true
-          
-          # Create a simple directory structure if needed
-          mkdir -p css js assets 2>/dev/null || true
-          
-          # Move files to proper locations
-          mv *.css css/ 2>/dev/null || true
-          mv *.js js/ 2>/dev/null || true
-          mv *.png *.jpg *.svg *.ico assets/ 2>/dev/null || true
-          
-          echo "=== AFTER NUCLEAR CLEANUP ==="
-          echo "Remaining files:"
-          find . -type f -ls
-          echo "Final count: $(find . -type f | wc -l)"
-          echo "Final size: $(du -sh . | cut -f1)"
-
       - name: Build And Deploy
         id: builddeploy
         uses: Azure/static-web-apps-deploy@v1
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_YELLOW_RIVER_07F5F4E00 }}
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }} # Used for Github integrations (i.e. PR comments)
           action: "upload"
-          app_location: "./eventmanagement/dist"
-          verbose: true
-          skip_app_build: true
-          skip_api_build: true
+          ###### Repository/Build Configurations - These values can be configured to match your app requirements. ######
+          # For more information regarding Static Web App workflow configurations, please visit: https://aka.ms/swaworkflowconfig
+          app_location: "./eventmanagement/dist" # App source code path
+          api_location: "" # Api source code path - optional
+          output_location: "build" # Built app content directory - optional
+          ###### End of Repository/Build Configurations ######
 
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
