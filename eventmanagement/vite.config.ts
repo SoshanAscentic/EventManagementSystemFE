@@ -20,7 +20,7 @@ export default defineConfig({
           // Routing and state management
           'app-core': ['react-router-dom', '@reduxjs/toolkit', 'react-redux'],
           
-          // UI library - group all Radix components
+          // UI library - group all Radix components (only the ones you actually have)
           'ui-components': [
             '@radix-ui/react-alert-dialog',
             '@radix-ui/react-avatar', 
@@ -32,17 +32,24 @@ export default defineConfig({
             '@radix-ui/react-scroll-area',
             '@radix-ui/react-select',
             '@radix-ui/react-slot',
-            '@radix-ui/react-toast'
+            '@radix-ui/react-switch',
+            '@radix-ui/react-tabs'
           ],
           
           // Form handling
           'forms': ['react-hook-form', '@hookform/resolvers', 'zod'],
           
-          // Utilities
-          'utils': ['date-fns', 'clsx', 'tailwind-merge', 'sonner'],
+          // Utilities and UI helpers
+          'utils': ['date-fns', 'clsx', 'tailwind-merge', 'sonner', 'lucide-react'],
           
           // SignalR
-          'signalr': ['@microsoft/signalr']
+          'signalr': ['@microsoft/signalr'],
+          
+          // Tailwind and styling
+          'styling': ['@tailwindcss/forms', '@tailwindcss/typography', 'class-variance-authority'],
+          
+          // Table components
+          'table': ['@tanstack/react-table']
         },
         chunkFileNames: 'assets/js/[name]-[hash].js',
         entryFileNames: 'assets/js/[name]-[hash].js',
