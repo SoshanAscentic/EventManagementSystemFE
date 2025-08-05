@@ -11,58 +11,54 @@ export default defineConfig({
     },
   },
   build: {
-    // Disable source maps in production
     sourcemap: false,
-    
-    // Increase chunk size warning limit
     chunkSizeWarningLimit: 5000,
     
-    // Optimize asset inlining - inline more assets to reduce file count
-    assetsInlineLimit: 10240, // Inline assets smaller than 10KB instead of 4KB
+    // Inline more assets to reduce file count
+    assetsInlineLimit: 50000, // 50KB - very aggressive inlining
     
     rollupOptions: {
-      // Tree shaking for smaller bundles
-      treeshake: {
-        preset: 'safest'
-      },
       output: {
-        // Aggressive chunking - create fewer, larger chunks
+        // Create only 2-3 chunks instead of many
         manualChunks: (id) => {
-          // Bundle everything into fewer chunks
+          // Only split into vendor and app - minimizes to ~3 files total
           if (id.includes('node_modules')) {
-            // Put all vendor code into a single chunk
-            return 'vendor'
+            // Keep heavy libraries separate for better caching
+            if (id.includes('react') || id.includes('react-dom')) {
+              return 'vendor' // This will be your largest, most stable chunk
+            }
+            return 'vendor' // Everything else from node_modules
           }
-          // All app code goes into the main chunk
-          return 'main'
+          // All your app code in one chunk
+          return 'app'
         },
         
-        // Minimize file count with simple naming
-        chunkFileNames: 'js/[hash].js',
-        entryFileNames: 'js/[hash].js',
+        // Simple naming to minimize files
+        chunkFileNames: '[name].js',
+        entryFileNames: '[name].js',
         assetFileNames: (assetInfo) => {
-          if (!assetInfo.name) return '[hash][extname]'
-          
-          if (/\.(css)$/.test(assetInfo.name)) {
-            return `css/[hash][extname]`
+          if (assetInfo.name?.endsWith('.css')) {
+            return 'styles.css'
           }
-          // Inline all images or put them in a single directory
-          if (/\.(png|jpe?g|svg|gif|tiff|bmp|ico)$/i.test(assetInfo.name)) {
-            return `assets/[hash][extname]`
-          }
-          return `assets/[hash][extname]`
+          // Inline small assets, keep only essential ones
+          return 'assets/[name][extname]'
         }
       }
     },
     
-    // Additional optimizations
     commonjsOptions: {
       transformMixedEsModules: true
     },
     
-    // Minimize CSS
-    cssMinify: true
+    // Aggressive minification
+    minify: 'terser',
   },
+  
+  // Alternative way to remove console logs
+  esbuild: {
+    drop: ['console', 'debugger'],
+  },
+  
   server: {
     port: 5173,
     host: true,
