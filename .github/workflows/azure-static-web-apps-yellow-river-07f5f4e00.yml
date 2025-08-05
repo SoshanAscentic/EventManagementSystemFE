@@ -42,32 +42,53 @@ jobs:
         run: |
           cd eventmanagement/dist
           
+          # Remove node_modules if it exists (it shouldn't!)
+          rm -rf node_modules/
+          
+          # Remove all development and config files
+          find . -name "package.json" -delete
+          find . -name "package-lock.json" -delete
+          find . -name "yarn.lock" -delete
+          find . -name "tsconfig*.json" -delete
+          find . -name ".npmrc" -delete
+          find . -name ".yarnrc*" -delete
+          find . -name "vite.config.*" -delete
+          find . -name "tailwind.config.*" -delete
+          find . -name "postcss.config.*" -delete
+          
           # Remove all source maps and development files
           find . -name "*.map" -delete
           find . -name "*.txt" -delete
           find . -name ".DS_Store" -delete
           find . -name "*.log" -delete
-          
-          # Remove any development-only files
           find . -name "*.dev.*" -delete
           find . -name "*.development.*" -delete
+          
+          # Remove TypeScript declaration files
+          find . -name "*.d.ts" -delete
+          
+          # Remove any test files
+          find . -name "*.test.*" -delete
+          find . -name "*.spec.*" -delete
+          
+          # Remove documentation files
+          find . -name "README*" -delete
+          find . -name "CHANGELOG*" -delete
+          find . -name "LICENSE*" -delete
           
           # Clean up empty directories
           find . -type d -empty -delete
           
-          # Compress large text files if any
-          find . -name "*.js" -size +100k -exec echo "Large JS file: {}" \;
-          find . -name "*.css" -size +50k -exec echo "Large CSS file: {}" \;
-          
-          # Final count and size check
+          # Final verification
           FILE_COUNT=$(find . -type f | wc -l)
           TOTAL_SIZE=$(du -sh . | cut -f1)
           echo "Final file count: $FILE_COUNT"
           echo "Total size: $TOTAL_SIZE"
           
-          # Fail if too many files (Azure limit is around 20,000)
-          if [ $FILE_COUNT -gt 15000 ]; then
-            echo "ERROR: Too many files ($FILE_COUNT). Azure Static Web Apps limit exceeded."
+          if [ $FILE_COUNT -gt 10000 ]; then
+            echo "ERROR: Still too many files ($FILE_COUNT)"
+            echo "Listing directories by file count:"
+            find . -type d -exec sh -c 'echo "$(find "$1" -maxdepth 1 -type f | wc -l) files in $1"' _ {} \; | sort -nr | head -20
             exit 1
           fi
 
