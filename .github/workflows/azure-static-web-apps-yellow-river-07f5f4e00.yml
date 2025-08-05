@@ -12,7 +12,7 @@ on:
 jobs:
   build_and_deploy_job:
     if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
-    runs-on: ubuntu-latest  # Changed to ubuntu-latest for better Node.js support
+    runs-on: ubuntu-latest  
     name: Build and Deploy Job
     steps:
       - uses: actions/checkout@v3
@@ -30,8 +30,8 @@ jobs:
       - name: Install dependencies
         run: |
           cd eventmanagement
-          npm ci
-          
+          npm install
+
       - name: Build application
         run: |
           cd eventmanagement
@@ -47,7 +47,8 @@ jobs:
           app_location: "./eventmanagement"
           api_location: ""
           output_location: "dist"
-          skip_app_build: true  # Skip build since we already built it
+          skip_app_build: true
+          skip_api_build: true
 
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
