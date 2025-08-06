@@ -21,9 +21,9 @@ jobs:
           lfs: false
       - name: Create .env.production
         run: |
-          echo "VITE_PRODUCTION_API_URL=${{ secrets.VITE_PRODUCTION_API_URL }}" >> .env
-          echo "VITE_LOCAL_API_URL=${{ secrets.VITE_LOCAL_API_URL }}" >> .env
-          echo "VITE_USE_LOCAL_API=${{ secrets.VITE_USE_LOCAL_API }}" >> .env
+          echo "VITE_PRODUCTION_API_URL=${{ secrets.VITE_PRODUCTION_API_URL }}" >> eventmanagement/.env
+          echo "VITE_LOCAL_API_URL=${{ secrets.VITE_LOCAL_API_URL }}" >> eventmanagement/.env
+          echo "VITE_USE_LOCAL_API=${{ secrets.VITE_USE_LOCAL_API }}" >> eventmanagement/.env
 
           
       - name: Setup Node.js
