@@ -1,11 +1,10 @@
-// src/features/auth/components/RegisterForm.tsx
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Link, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import { FormField } from '@/components/molecules'
 import { Input, Icon } from '@/components/atoms'
@@ -123,14 +122,8 @@ export const RegisterForm = ({ onSuccess, className }: RegisterFormProps) => {
   }
 
   return (
-    <Card className={cn('w-full max-w-md', className)}>
-      <CardHeader className="space-y-1">
-        <CardTitle className="text-2xl text-center">Create account</CardTitle>
-        <CardDescription className="text-center">
-          Enter your information below to create your account
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
+    <Card className={cn('w-full border-0 shadow-none bg-transparent', className)}>
+      <CardContent className="p-0">
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           {/* Name Fields */}
           <div className="grid grid-cols-2 gap-4">

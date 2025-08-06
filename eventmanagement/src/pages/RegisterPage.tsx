@@ -78,7 +78,7 @@ export const RegisterPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-indigo-50/20 flex items-center justify-center relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-indigo-50/20 flex flex-col justify-start py-8 sm:py-12 relative overflow-hidden">
       {/* Background Elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#f8fafc_1px,transparent_1px),linear-gradient(to_bottom,#f8fafc_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_110%)]"></div>
@@ -87,7 +87,21 @@ export const RegisterPage = () => {
         <div className="absolute bottom-32 left-1/4 w-28 h-28 bg-gradient-to-br from-purple-100 to-pink-100 rounded-xl -rotate-6 opacity-30 animate-float" style={{animationDelay: '4s'}}></div>
       </div>
 
-      <div className="relative w-full max-w-md mx-auto px-4 animate-fade-in">
+      {/* EventHub Title */}
+      <div className="relative text-center mb-6 animate-fade-in">
+        <Link to="/" className="flex justify-center items-center space-x-2 hover:opacity-80 transition-opacity duration-200">
+          <div className="flex justify-center items-center space-x-2">
+            <div className="rounded-md bg-gradient-to-r from-green-600 to-purple-600 p-2">
+              <Icon name="Calendar" className="h-8 w-8 text-white" />
+            </div>
+            <span className="text-3xl font-bold bg-gradient-to-r from-green-600 to-purple-600 bg-clip-text text-transparent">
+              EventHub
+            </span>
+          </div>
+        </Link>
+      </div>
+
+      <div className="relative w-full max-w-2xl mx-auto px-4 animate-fade-in">
         <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl border border-white/20 overflow-hidden">
           {/* Header with gradient */}
           <div className="bg-gradient-to-r from-green-600 via-blue-600 to-purple-600 p-6 text-center relative">

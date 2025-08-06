@@ -1,4 +1,4 @@
-import { useLocation } from 'react-router-dom'
+import { useLocation, Link } from 'react-router-dom'
 import { LoginForm } from '@/features/auth/components/LoginForm'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Icon } from '@/components/atoms'
@@ -8,13 +8,13 @@ export const LoginPage = () => {
   const message = location.state?.message
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-indigo-50/20 flex items-center justify-center relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-indigo-50/20 flex flex-col justify-center py-8 sm:py-12 relative overflow-hidden">
       {/* Background Elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#f8fafc_1px,transparent_1px),linear-gradient(to_bottom,#f8fafc_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_110%)]"></div>
-        <div className="absolute top-20 left-10 w-32 h-32 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-2xl rotate-12 opacity-40 animate-float"></div>
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#f8fafc_1px,transparent_1px),linear-gradient(to_bottom,#f8fafc_1px,12 opacity-40 animate-float"></div>
         <div className="absolute top-40 right-20 w-24 h-24 bg-gradient-to-br from-violet-100 to-purple-100 rounded-full opacity-30 animate-float" style={{animationDelay: '2s'}}></div>
-        <div className="absolute bottom-32 left-1/4 w-28 h-28 bg-gradient-to-br from-cyan-100 to-blue-100 rounded-xl -rotate-6 opacity-30 animate-float" style={{animationDelay: '4s'}}></div>
+        <div className="absolute bottom-32 left-1/4 w-28 h-28 bg-gradient-to-br from-cyan-100 to-blutransparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_110%)]"></div>
+        <div className="absolute top-20 left-10 w-32 h-32 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-2xl rotate-e-100 rounded-xl -rotate-6 opacity-30 animate-float" style={{animationDelay: '4s'}}></div>
         
         {/* Floating Elements */}
         <div className="absolute top-1/4 right-1/4 w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
@@ -23,7 +23,19 @@ export const LoginPage = () => {
         <div className="absolute bottom-1/4 left-1/4 w-2 h-2 bg-blue-300 rounded-full animate-pulse" style={{animationDelay: '2s'}}></div>
       </div>
 
-      <div className="relative w-full max-w-md mx-auto px-4 animate-fade-in">
+      {/* EventHub Title */}
+      <div className="relative text-center mb-6 animate-fade-in">
+        <Link to="/" className="flex justify-center items-center space-x-2 hover:opacity-80 transition-opacity duration-200">
+          <div className="rounded-md bg-gradient-to-r from-blue-600 to-purple-600 p-2">
+            <Icon name="Calendar" className="h-8 w-8 text-white" />
+          </div>
+          <span className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            EventHub
+          </span>
+        </Link>
+      </div>
+
+      <div className="relative w-full max-w-2xl mx-auto px-4 animate-fade-in">
         {/* Success Message */}
         {message && (
           <div className="mb-6 animate-fade-in" style={{animationDelay: '0.1s'}}>
@@ -57,7 +69,7 @@ export const LoginPage = () => {
         </div>
 
         {/* Additional Info */}
-        <div className="text-center mt-8 animate-fade-in" style={{animationDelay: '0.3s'}}>
+        <div className="text-center mt-6 animate-fade-in" style={{animationDelay: '0.3s'}}>
           <p className="text-sm text-gray-600 bg-white/60 backdrop-blur-sm rounded-full px-4 py-2 inline-block border border-white/30">
             🔒 Your data is secure and encrypted
           </p>

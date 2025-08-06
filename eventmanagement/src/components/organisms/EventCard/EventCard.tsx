@@ -11,6 +11,16 @@ import { useState, useEffect } from 'react'
 import { useCancelRegistrationMutation } from '@/features/registrations/api/registrationsApi'
 import { useRegisterForEventMutation } from '@/features/registrations/api/registrationsApi'
 import { ConfirmDialog } from '@/shared/components/ConfirmDialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 
 interface EventCardProps {
   event: EventDto
@@ -18,7 +28,7 @@ interface EventCardProps {
   onRegister?: (eventId: number) => void
   onDelete?: (eventId: number) => void
   variant?: 'default' | 'featured' | 'compact' | 'admin'
-  disableEdit?: boolean // Add this prop for external control
+  disableEdit?: boolean
 }
 
 // Default fallback image
@@ -53,12 +63,13 @@ const getEventImageUrl = (event: EventDto): string => {
   return DEFAULT_EVENT_IMAGE
 }
 
-export const EventCard = ({ event, showActions = true, onRegister, onDelete, variant = 'default', disableEdit = false }: EventCardProps) => {
+export const EventCard = ({ event, showActions = true, onDelete, variant = 'default', disableEdit = false }: EventCardProps) => {
   const { hasPermission, isAuthenticated } = useAuth()
   const navigate = useNavigate()
   const [currentImageUrl, setCurrentImageUrl] = useState<string>(() => getEventImageUrl(event))
   const [imageLoading, setImageLoading] = useState(true)
   const [showCancelDialog, setShowCancelDialog] = useState(false)
+  const [showRegisterDialog, setShowRegisterDialog] = useState(false)
 
   // Use the reliable registration status hook
   const { 
@@ -89,20 +100,35 @@ export const EventCard = ({ event, showActions = true, onRegister, onDelete, var
       return
     }
 
-    if (onRegister) {
-      onRegister(event.id)
-      return
-    }
+    // Always show the confirmation dialog for registration
+    // (HomePage and EventsPage pass placeholder onRegister functions that we should ignore)
+    setShowRegisterDialog(true)
+  }
 
-    // Handle registration directly if no onRegister callback
+  const handleConfirmRegister = async () => {
+    if (!event || event.remainingCapacity === 0) return
+
     try {
       await registerForEvent({
         eventId: event.id,
         notes: undefined
       }).unwrap()
+      
+      setShowRegisterDialog(false)
+      // The registration status will refresh automatically due to cache invalidation
     } catch (error: any) {
       console.error('Registration failed:', error)
+      // Could add error handling/toast notification here
     }
+  }
+
+  const handleViewDetails = () => {
+    setShowRegisterDialog(false)
+    navigate(`/events/${event.id}`)
+  }
+
+  const handleCloseRegisterDialog = () => {
+    setShowRegisterDialog(false)
   }
 
   const handleCancelRegistration = async () => {
@@ -119,7 +145,6 @@ export const EventCard = ({ event, showActions = true, onRegister, onDelete, var
     }
   }
 
-  // Initialize image URL
   useEffect(() => {
     const imageUrl = getEventImageUrl(event)
     setCurrentImageUrl(imageUrl)
@@ -141,34 +166,37 @@ export const EventCard = ({ event, showActions = true, onRegister, onDelete, var
   // Compact variant for EventDetailPage related events
   if (variant === 'compact') {
     return (
-      <div className="relative flex space-x-3 p-3 rounded-lg bg-gray-50/50 hover:bg-white transition-colors border border-gray-100 hover:border-blue-200 hover:shadow-sm overflow-hidden">
+      <div className="group relative flex items-center space-x-4 p-4 rounded-xl bg-white border border-gray-100 hover:border-gray-200 hover:shadow-md transition-all duration-300 overflow-hidden">
         {/* Completed Event Overlay for Compact */}
         {completed && (
-          <div className="absolute inset-0 bg-black/60 z-10 flex items-center justify-center backdrop-blur-sm">
-            <div className="bg-gray-900 text-white px-3 py-1 rounded-lg font-semibold text-xs shadow-xl border border-gray-700">
-              <Icon name="Clock" className="w-3 h-3 mr-1 inline" />
+          <div className="absolute inset-0 bg-gray-900/60 z-10 flex items-center justify-center backdrop-blur-sm rounded-xl">
+            <div className="bg-gray-800 text-white px-4 py-2 rounded-lg font-medium text-sm shadow-lg">
+              <Icon name="Clock" className="w-4 h-4 mr-2 inline" />
               Completed
             </div>
           </div>
         )}
         
-        <div className="relative">
-          <img
-            src={currentImageUrl}
-            alt={event.title}
-            className="w-12 h-12 rounded-lg object-cover"
-            onError={handleImageError}
-            onLoad={handleImageLoad}
-          />
+        <div className="relative flex-shrink-0">
+          <div className="relative overflow-hidden rounded-lg shadow-sm">
+            <img
+              src={currentImageUrl}
+              alt={event.title}
+              className="w-16 h-16 object-cover transition-transform duration-300 group-hover:scale-105"
+              onError={handleImageError}
+              onLoad={handleImageLoad}
+            />
+          </div>
           {isRegistered && !completed && (
-            <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full border border-white"></div>
+            <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white shadow-sm"></div>
           )}
         </div>
+        
         <div className="flex-1 min-w-0">
-          <h4 className="text-sm font-semibold text-gray-900 truncate">
+          <h4 className="text-sm font-semibold text-gray-900 truncate group-hover:text-blue-600 transition-colors duration-200">
             {event.title}
           </h4>
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-gray-500 mt-1">
             {new Date(event.startDateTime).toLocaleDateString('en-US', {
               month: 'short',
               day: 'numeric',
@@ -176,13 +204,13 @@ export const EventCard = ({ event, showActions = true, onRegister, onDelete, var
             })}
           </p>
           {completed && (
-            <Badge variant="secondary" className="bg-gray-100 text-gray-600 text-xs mt-1">
+            <Badge variant="secondary" className="bg-gray-100 text-gray-600 text-xs mt-2">
               Completed
             </Badge>
           )}
         </div>
-        {/* View button always available - higher z-index to show above overlay */}
-        <Button variant="ghost" size="sm" asChild className="relative z-20">
+        
+        <Button variant="ghost" size="sm" asChild className="flex-shrink-0 hover:bg-gray-50 rounded-lg transition-colors duration-200">
           <Link to={`/events/${event.id}`}>
             <Icon name="ArrowRight" className="h-4 w-4" />
           </Link>
@@ -191,14 +219,14 @@ export const EventCard = ({ event, showActions = true, onRegister, onDelete, var
     )
   }
 
-  // Admin variant with debugging info
+  // Admin variant
   if (variant === 'admin') {
     return (
-      <Card className="group bg-white/90 backdrop-blur-sm shadow-lg hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 border border-white/20 overflow-hidden h-full relative">
+      <Card className="group relative bg-white shadow-sm hover:shadow-lg transition-all duration-300 hover:-translate-y-1 border border-gray-100 hover:border-gray-200 overflow-hidden h-full">
         {/* Completed Event Overlay for Admin */}
         {completed && (
-          <div className="absolute inset-0 bg-black/50 z-10 flex items-center justify-center backdrop-blur-sm">
-            <div className="bg-gray-900 text-white px-6 py-3 rounded-lg font-semibold shadow-xl border border-gray-700">
+          <div className="absolute inset-0 bg-gray-900/60 z-20 flex items-center justify-center backdrop-blur-sm">
+            <div className="bg-gray-800 text-white px-6 py-3 rounded-lg font-medium shadow-lg">
               <Icon name="Clock" className="w-5 h-5 mr-2 inline" />
               Event Completed
             </div>
@@ -207,7 +235,7 @@ export const EventCard = ({ event, showActions = true, onRegister, onDelete, var
 
         <div className="relative overflow-hidden">
           {imageLoading && (
-            <div className="absolute inset-0 bg-gray-200 flex items-center justify-center z-10">
+            <div className="absolute inset-0 bg-gray-100 flex items-center justify-center z-10">
               <Icon name="Loader2" className="h-8 w-8 animate-spin text-gray-400" />
             </div>
           )}
@@ -215,42 +243,39 @@ export const EventCard = ({ event, showActions = true, onRegister, onDelete, var
           <img
             src={currentImageUrl}
             alt={event.title}
-            className="w-full h-48 object-cover transition-transform duration-700 group-hover:scale-110"
+            className="w-full h-48 object-cover transition-transform duration-500 group-hover:scale-105"
             onError={handleImageError}
             onLoad={handleImageLoad}
             style={{ display: imageLoading ? 'none' : 'block' }}
           />
           
           {!completed && (
-            <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
           )}
           
-          {/* Status and ID Badges - only show if not completed */}
+          {/* Status Badges */}
           {!completed && (
-            <div className="absolute top-4 left-4 flex gap-2 z-20">
-              <Badge variant="outline" className="bg-white/90 text-gray-700 shadow-md">
+            <div className="absolute top-4 left-4 flex gap-2 z-10">
+              <Badge variant="outline" className="bg-white/95 text-gray-700 shadow-sm border-gray-200">
                 ID: {event.id}
               </Badge>
             </div>
           )}
 
-          {/* Registration Status for Admin - only show if not completed */}
-          {!completed && (
-            <div className="absolute top-4 right-4 flex flex-col gap-1 z-20">
-              {isRegistered && (
-                <Badge className="bg-blue-100 text-blue-800 text-xs shadow-md">
-                  <Icon name="User" className="w-3 h-3 mr-1" />
-                  You're Registered
-                </Badge>
-              )}
+          {/* Registration Status */}
+          {!completed && isRegistered && (
+            <div className="absolute top-4 right-4 z-10">
+              <Badge className="bg-green-500 text-white shadow-sm">
+                <Icon name="Check" className="w-3 h-3 mr-1" />
+                Registered
+              </Badge>
             </div>
           )}
         </div>
 
-        {/* Conditional Content Layout for Completed Events */}
+        {/* Content Layout */}
         {completed ? (
-          /* Simplified layout for completed events */
-          <div className="absolute inset-x-0 bottom-0 z-20 bg-white/95 backdrop-blur-sm border-t border-gray-200 p-4">
+          <div className="absolute inset-x-0 bottom-0 z-30 bg-white border-t border-gray-100 p-4">
             <h3 className="text-lg font-semibold text-gray-900 mb-3 line-clamp-2">
               {event.title}
             </h3>
@@ -279,18 +304,17 @@ export const EventCard = ({ event, showActions = true, onRegister, onDelete, var
             )}
           </div>
         ) : (
-          /* Full layout for active events */
           <CardContent className="p-6 flex flex-col flex-1">
             <div className="flex items-center gap-2 mb-3">
               <Badge variant="secondary" className="bg-blue-50 text-blue-700 border-blue-200">
                 {event.categoryName}
               </Badge>
-              <Badge variant="outline" className="border-gray-300 text-gray-600">
+              <Badge variant="outline" className="border-gray-200 text-gray-600">
                 {event.eventType}
               </Badge>
             </div>
 
-            <h3 className="text-xl font-semibold mb-3 text-gray-900 group-hover:text-blue-600 transition-colors line-clamp-2">
+            <h3 className="text-xl font-semibold mb-3 text-gray-900 group-hover:text-blue-600 transition-colors duration-200 line-clamp-2">
               {event.title}
             </h3>
 
@@ -298,19 +322,26 @@ export const EventCard = ({ event, showActions = true, onRegister, onDelete, var
               {event.description}
             </p>
 
-            <div className="space-y-2 mb-4 text-sm">
+            <div className="space-y-3 mb-6 text-sm">
               <div className="flex items-center text-gray-600">
-                <Icon name="Calendar" className="h-4 w-4 mr-2 text-blue-500" />
-                {formatEventDateTime(event.startDateTime, event.endDateTime)}
+                <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center mr-3">
+                  <Icon name="Calendar" className="h-4 w-4 text-blue-500" />
+                </div>
+                <span>{formatEventDateTime(event.startDateTime, event.endDateTime)}</span>
               </div>
+              
               <div className="flex items-center text-gray-600">
-                <Icon name="MapPin" className="h-4 w-4 mr-2 text-red-500" />
-                {event.venue}
+                <div className="w-8 h-8 rounded-full bg-red-50 flex items-center justify-center mr-3">
+                  <Icon name="MapPin" className="h-4 w-4 text-red-500" />
+                </div>
+                <span className="truncate">{event.venue}</span>
               </div>
 
               <div className="flex items-center text-gray-600">
-                <Icon name="Clock" className="h-4 w-4 mr-2 text-orange-500" />
-                Created {formatRelativeTime(event.createdAt)}
+                <div className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center mr-3">
+                  <Icon name="Clock" className="h-4 w-4 text-gray-500" />
+                </div>
+                <span>Created {formatRelativeTime(event.createdAt)}</span>
               </div>
             </div>
 
@@ -330,8 +361,8 @@ export const EventCard = ({ event, showActions = true, onRegister, onDelete, var
                     size="sm" 
                     className={`flex-1 transition-colors ${
                       disableEdit 
-                        ? 'opacity-50 cursor-not-allowed hover:bg-white hover:border-gray-200' 
-                        : 'hover:bg-yellow-50 hover:border-yellow-300'
+                        ? 'opacity-50 cursor-not-allowed' 
+                        : 'hover:bg-blue-50 hover:border-blue-300 hover:text-blue-600'
                     }`}
                     disabled={disableEdit}
                     asChild={!disableEdit}
@@ -372,11 +403,11 @@ export const EventCard = ({ event, showActions = true, onRegister, onDelete, var
 
   // Default variant (public event cards)
   return (
-    <Card className="group bg-white/90 backdrop-blur-sm shadow-lg hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 border border-white/20 overflow-hidden h-full relative">
-      {/* Completed Event Overlay for Default */}
+    <Card className="group relative bg-white shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-2 border border-gray-100 hover:border-gray-200 overflow-hidden h-full">
+      {/* Completed Event Overlay */}
       {completed && (
-        <div className="absolute inset-0 bg-black/50 z-10 flex items-center justify-center backdrop-blur-sm">
-          <div className="bg-gray-900 text-white px-6 py-3 rounded-lg font-semibold shadow-xl border border-gray-700">
+        <div className="absolute inset-0 bg-gray-900/60 z-20 flex items-center justify-center backdrop-blur-sm">
+          <div className="bg-gray-800 text-white px-6 py-3 rounded-lg font-medium shadow-lg">
             <Icon name="Clock" className="w-5 h-5 mr-2 inline" />
             Event Completed
           </div>
@@ -385,7 +416,7 @@ export const EventCard = ({ event, showActions = true, onRegister, onDelete, var
 
       <div className="relative overflow-hidden">
         {imageLoading && (
-          <div className="absolute inset-0 bg-gray-200 flex items-center justify-center z-10">
+          <div className="absolute inset-0 bg-gray-100 flex items-center justify-center z-10">
             <Icon name="Loader2" className="h-8 w-8 animate-spin text-gray-400" />
           </div>
         )}
@@ -393,43 +424,39 @@ export const EventCard = ({ event, showActions = true, onRegister, onDelete, var
         <img
           src={currentImageUrl}
           alt={event.title}
-          className="w-full h-48 object-cover transition-transform duration-700 group-hover:scale-110"
+          className="w-full h-48 object-cover transition-transform duration-500 group-hover:scale-105"
           onError={handleImageError}
           onLoad={handleImageLoad}
           style={{ display: imageLoading ? 'none' : 'block' }}
         />
         
         {!completed && (
-          <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+          <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
         )}
         
-        {/* Status Badges - only show if not completed */}
-        {!completed && (
-          <div className="absolute top-4 left-4 flex flex-col gap-2 z-20">
-            {/* Registration Status Badge */}
-            {isRegistered && (
-              <Badge className="bg-blue-500 hover:bg-blue-600 shadow-md">
-                <Icon name="Check" className="w-3 h-3 mr-1" />
-                Registered
-              </Badge>
-            )}
+        {/* Status Badges */}
+        {!completed && isRegistered && (
+          <div className="absolute top-4 left-4 z-10">
+            <Badge className="bg-green-500 hover:bg-green-600 shadow-md">
+              <Icon name="Check" className="w-3 h-3 mr-1" />
+              Registered
+            </Badge>
           </div>
         )}
       </div>
 
-      {/* Conditional Content Layout for Completed Events */}
+      {/* Content Layout */}
       {completed ? (
-        /* Simplified layout for completed events */
-        <div className="absolute inset-x-0 bottom-0 z-20 bg-white/95 backdrop-blur-sm border-t border-gray-200 p-4">
-          <h3 className="text-lg font-semibold text-gray-900 mb-3 line-clamp-2">
+        <div className="absolute inset-x-0 bottom-0 z-30 bg-white border-t border-gray-100 p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4 line-clamp-2">
             {event.title}
           </h3>
           
           {showActions && (
             <div className="flex gap-3">
-              <Button variant="outline" size="sm" className="flex-1 border-gray-200 hover:border-blue-300 hover:bg-blue-50" asChild>
+              <Button variant="outline" size="sm" className="flex-1" asChild>
                 <Link to={`/events/${event.id}`}>
-                  <Icon name="Eye" className="w-4 h-4 mr-1" />
+                  <Icon name="Eye" className="w-4 h-4 mr-2" />
                   View Details
                 </Link>
               </Button>
@@ -437,39 +464,45 @@ export const EventCard = ({ event, showActions = true, onRegister, onDelete, var
           )}
         </div>
       ) : (
-        /* Full layout for active events */
         <CardContent className="p-6 flex flex-col flex-1">
-          <div className="flex items-center gap-2 mb-3">
+          <div className="flex items-center gap-2 mb-4">
             <Badge variant="secondary" className="bg-blue-50 text-blue-700 border-blue-200">
               {event.categoryName}
             </Badge>
-            <Badge variant="outline" className="border-gray-300 text-gray-600">
+            <Badge variant="outline" className="border-gray-200 text-gray-600">
               {event.eventType}
             </Badge>
           </div>
 
-          <h3 className="text-xl font-semibold mb-3 text-gray-900 group-hover:text-blue-600 transition-colors line-clamp-2">
+          <h3 className="text-xl font-semibold mb-3 text-gray-900 group-hover:text-blue-600 transition-colors duration-200 line-clamp-2">
             {event.title}
           </h3>
 
-          <p className="text-gray-600 mb-4 line-clamp-2 text-sm leading-relaxed flex-1">
+          <p className="text-gray-600 mb-6 line-clamp-2 text-sm leading-relaxed flex-1">
             {event.description}
           </p>
 
-          <div className="space-y-2 mb-6">
-            <div className="flex items-center text-sm text-gray-500">
-              <Icon name="Calendar" className="mr-2 h-4 w-4 text-blue-500" />
-              {new Date(event.startDateTime).toLocaleDateString('en-US', {
-                weekday: variant === 'featured' ? 'long' : 'short',
-                year: 'numeric',
-                month: variant === 'featured' ? 'long' : 'short',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-              })}
+          <div className="space-y-3 mb-6">
+            <div className="flex items-center text-sm text-gray-600">
+              <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center mr-3">
+                <Icon name="Calendar" className="h-4 w-4 text-blue-500" />
+              </div>
+              <span>
+                {new Date(event.startDateTime).toLocaleDateString('en-US', {
+                  weekday: variant === 'featured' ? 'long' : 'short',
+                  year: 'numeric',
+                  month: variant === 'featured' ? 'long' : 'short',
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                })}
+              </span>
             </div>
-            <div className="flex items-center text-sm text-gray-500">
-              <Icon name="MapPin" className="mr-2 h-4 w-4 text-red-500" />
+            
+            <div className="flex items-center text-sm text-gray-600">
+              <div className="w-8 h-8 rounded-full bg-red-50 flex items-center justify-center mr-3">
+                <Icon name="MapPin" className="h-4 w-4 text-red-500" />
+              </div>
               <span className="truncate">{event.venue}</span>
             </div>
           </div>
@@ -477,23 +510,22 @@ export const EventCard = ({ event, showActions = true, onRegister, onDelete, var
           {/* Action Buttons */}
           {showActions && (
             <div className="flex gap-3 mt-auto">
-              {/* View Details button - always available */}
-              <Button variant="outline" size="sm" className="flex-1 border-gray-200 hover:border-blue-300 hover:bg-blue-50" asChild>
+              <Button variant="outline" size="sm" className="flex-1" asChild>
                 <Link to={`/events/${event.id}`}>
-                  <Icon name="Eye" className="w-4 h-4 mr-1" />
+                  <Icon name="Eye" className="w-4 h-4 mr-2" />
                   View Details
                 </Link>
               </Button>
               
               {/* Registration Status and Actions */}
               {registrationLoading ? (
-                <div className="flex-1 flex items-center justify-center py-2 px-3 bg-gray-50 border border-gray-200 rounded text-sm">
+                <div className="flex-1 flex items-center justify-center py-2 px-3 bg-gray-50 border border-gray-200 rounded-md text-sm">
                   <Icon name="Loader2" className="w-4 h-4 mr-1 animate-spin" />
                   Loading...
                 </div>
               ) : isRegistered ? (
                 <div className="flex-1 flex gap-2">
-                  <div className="flex-1 flex items-center justify-center py-2 px-3 bg-green-50 text-green-700 border border-green-200 rounded text-sm font-medium">
+                  <div className="flex-1 flex items-center justify-center py-2 px-3 bg-green-50 text-green-700 border border-green-200 rounded-md text-sm font-medium">
                     <Icon name="CheckCircle" className="w-4 h-4 mr-1" />
                     Registered
                   </div>
@@ -516,7 +548,7 @@ export const EventCard = ({ event, showActions = true, onRegister, onDelete, var
               ) : (
                 <Button 
                   size="sm" 
-                  className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-md hover:shadow-lg transition-all duration-300"
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow-md transition-all duration-200"
                   disabled={event.remainingCapacity === 0 || isRegistering}
                   onClick={handleRegisterClick}
                 >
@@ -554,6 +586,90 @@ export const EventCard = ({ event, showActions = true, onRegister, onDelete, var
         variant="destructive"
         confirmText="Cancel Registration"
       />
+
+      {/* Custom Register Confirmation Dialog */}
+      <AlertDialog open={showRegisterDialog} onOpenChange={setShowRegisterDialog}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center">
+              <Icon name="Calendar" className="w-5 h-5 mr-2 text-blue-600" />
+              Register for Event
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              You're about to register for <strong>"{event.title}"</strong>.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          
+          {/* Event details outside of AlertDialogDescription to avoid nesting issues */}
+          <div className="px-6 py-2">
+            <div className="space-y-2 text-sm">
+              <div className="flex items-center text-gray-600">
+                <Icon name="Calendar" className="w-4 h-4 mr-2 text-blue-500 flex-shrink-0" />
+                <span>
+                  {new Date(event.startDateTime).toLocaleDateString('en-US', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}
+                </span>
+              </div>
+              <div className="flex items-center text-gray-600">
+                <Icon name="MapPin" className="w-4 h-4 mr-2 text-red-500 flex-shrink-0" />
+                <span className="truncate">{event.venue}</span>
+              </div>
+              <div className="flex items-center text-gray-600">
+                <Icon name="Users" className="w-4 h-4 mr-2 text-green-500 flex-shrink-0" />
+                <span>{event.remainingCapacity} spots remaining</span>
+              </div>
+            </div>
+            <p className="text-sm text-gray-600 mt-4">
+              Would you like to continue with registration or view the full event details first?
+            </p>
+          </div>
+
+          <AlertDialogFooter className="flex-col space-y-2 sm:flex-row sm:space-y-0 sm:space-x-2">
+            <AlertDialogCancel 
+              onClick={handleCloseRegisterDialog}
+              disabled={isRegistering}
+              className="w-full sm:w-auto"
+            >
+              <Icon name="X" className="w-4 h-4 mr-1" />
+              Close
+            </AlertDialogCancel>
+            <AlertDialogAction asChild>
+              <Button
+                variant="outline"
+                onClick={handleViewDetails}
+                disabled={isRegistering}
+                className="w-full sm:w-auto border-blue-200 text-blue-600 hover:bg-blue-50 hover:border-blue-300"
+              >
+                <Icon name="Eye" className="w-4 h-4 mr-1" />
+                View Details First
+              </Button>
+            </AlertDialogAction>
+            <Button
+              onClick={handleConfirmRegister}
+              disabled={isRegistering}
+              className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700"
+            >
+              {isRegistering ? (
+                <>
+                  <Icon name="Loader2" className="w-4 h-4 mr-1 animate-spin" />
+                  Registering...
+                </>
+              ) : (
+                <>
+                  <Icon name="UserPlus" className="w-4 h-4 mr-1" />
+                  Continue to Register
+                </>
+              )}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   )
 }

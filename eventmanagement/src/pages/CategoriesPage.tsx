@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useState, useMemo, useEffect, useRef } from 'react'
+import { useSearchParams, useLocation } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { SearchBox } from '@/components/molecules'
 import { Badge, Icon, Spinner } from '@/components/atoms'
@@ -9,10 +9,65 @@ import { useGetEventsQuery } from '@/features/events/api/eventsApi'
 import { useDebounce } from '@/shared/hooks/useDebounce'
 import { Link } from 'react-router-dom'
 
+// Extend Window interface to include custom property
+declare global {
+  interface Window {
+    __APP_NAVIGATING?: boolean
+  }
+}
+
 export const CategoriesPage = () => {
   const [searchParams, setSearchParams] = useSearchParams()
   const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '')
   const debouncedSearchTerm = useDebounce(searchTerm, 300)
+  const location = useLocation()
+  
+  // Track whether to show entrance animations (only on first load)
+  const [showAnimations, setShowAnimations] = useState(false)
+  const hasCheckedAnimations = useRef(false)
+
+  // More reliable detection of page load vs route navigation
+  useEffect(() => {
+    if (hasCheckedAnimations.current) return
+    hasCheckedAnimations.current = true
+
+    // Use a global flag on window to track app navigation
+    const isAppNavigation = window.__APP_NAVIGATING === true
+    
+    // Check if this is a fresh page load by checking if DOM is still loading
+    const isPageRefresh = document.readyState === 'loading' || !isAppNavigation
+    
+    // Also check sessionStorage for previous visits in this session
+    const hasVisitedBefore = sessionStorage.getItem('categories-visited') === 'true'
+    
+    // Show animations if:
+    // 1. This is a page refresh/direct navigation (not app routing)
+    // 2. OR first time visiting in this session
+    if (isPageRefresh || !hasVisitedBefore) {
+      setShowAnimations(true)
+    } else {
+      setShowAnimations(false)
+    }
+    
+    // Mark that we've visited this page
+    sessionStorage.setItem('categories-visited', 'true')
+    
+    // Mark that we're now navigating within the app
+    window.__APP_NAVIGATING = true
+    
+    // Reset the navigation flag on page unload (refresh/close)
+    const handleBeforeUnload = () => {
+      window.__APP_NAVIGATING = false
+    }
+    
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [])
+
+  // Reset app navigation flag on location change (for subsequent navigations)
+  useEffect(() => {
+    window.__APP_NAVIGATING = true
+  }, [location])
 
   // Fetch all categories (the API doesn't support search/pagination)
   const {
@@ -91,6 +146,18 @@ export const CategoriesPage = () => {
     setSearchParams(searchParams)
   }
 
+  // Helper function to conditionally add animation classes
+  const getAnimationClass = (baseClass: string, delay?: string) => {
+    if (!showAnimations) return ''
+    return delay ? `${baseClass}` : baseClass
+  }
+
+  // Helper function to get animation style
+  const getAnimationStyle = (delay: string) => {
+    if (!showAnimations) return {}
+    return { animationDelay: delay }
+  }
+
   // Loading state
   if (categoriesLoading && eventsLoading) {
     return (
@@ -126,37 +193,68 @@ export const CategoriesPage = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-indigo-50/20">
-      {/* Background Elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#f8fafc_1px,transparent_1px),linear-gradient(to_bottom,#f8fafc_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_110%)]"></div>
-        <div className="absolute top-20 left-10 w-32 h-32 bg-gradient-to-br from-purple-100 to-pink-100 rounded-2xl rotate-12 opacity-40"></div>
-        <div className="absolute top-40 right-20 w-24 h-24 bg-gradient-to-br from-violet-100 to-purple-100 rounded-full opacity-30"></div>
-        <div className="absolute bottom-32 left-1/4 w-28 h-28 bg-gradient-to-br from-indigo-100 to-blue-100 rounded-xl -rotate-6 opacity-30"></div>
-      </div>
+      {/* Hero Section */}
+      <section className="relative py-20 overflow-hidden">
+        {/* Animated Background Elements - only animate on first load */}
+        <div className="absolute inset-0">
+          <div className="absolute inset-0 bg-[linear-gradient(to_right,#f8fafc_1px,transparent_1px),linear-gradient(to_bottom,#f8fafc_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_110%)]"></div>
+          <div className={`absolute top-20 left-10 w-32 h-32 bg-gradient-to-br from-purple-100 to-pink-100 rounded-2xl rotate-12 opacity-60 ${getAnimationClass('animate-float')}`}></div>
+          <div className={`absolute top-40 right-20 w-24 h-24 bg-gradient-to-br from-violet-100 to-purple-100 rounded-full opacity-50 ${getAnimationClass('animate-float-delay-1')}`}></div>
+          <div className={`absolute bottom-32 left-1/4 w-28 h-28 bg-gradient-to-br from-indigo-100 to-blue-100 rounded-xl -rotate-6 opacity-40 ${getAnimationClass('animate-float-delay-2')}`}></div>
+          <div className={`absolute bottom-20 right-1/3 w-20 h-20 bg-gradient-to-br from-pink-100 to-rose-100 rounded-2xl rotate-45 opacity-30 ${getAnimationClass('animate-float-delay-3')}`}></div>
+        </div>
 
-      <div className="relative container mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="mb-8 animate-fade-in">
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center px-4 py-2 bg-purple-50 border border-purple-100 rounded-full text-sm font-medium text-purple-700 mb-6">
+        <div className="relative container mx-auto px-4">
+          <div className="text-center max-w-4xl mx-auto">
+            {/* Badge */}
+            <div className={`inline-flex items-center px-4 py-2 bg-purple-50 border border-purple-100 rounded-full text-sm font-medium text-purple-700 mb-6 ${getAnimationClass('animate-slide-down')}`}>
               <Icon name="Folder" className="w-4 h-4 mr-2" />
               {statistics.totalCategories} Event Categories
             </div>
-            <h1 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
-              Event 
-              <span className="bg-gradient-to-r from-purple-600 via-pink-600 to-indigo-600 bg-clip-text text-transparent ml-2">
-                Categories
+
+            {/* Title with enhanced animations */}
+            <h1 className={`text-4xl lg:text-6xl font-bold text-gray-900 mb-6 ${getAnimationClass('animate-slide-down')}`} style={getAnimationStyle('0.1s')}>
+              Event
+              <span className="relative inline-block ml-3">
+                <span className={`bg-gradient-to-r from-purple-600 via-pink-600 to-indigo-600 bg-clip-text text-transparent ${getAnimationClass('animate-gradient')}`}>
+                  Categories
+                </span>
+                <div className={`absolute -bottom-2 left-0 h-1 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full ${getAnimationClass('animate-slide-width')}`}></div>
               </span>
             </h1>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+
+            {/* Subtitle */}
+            <p className={`text-xl text-gray-600 mb-8 max-w-2xl mx-auto ${getAnimationClass('animate-slide-up')}`} style={getAnimationStyle('0.2s')}>
               Browse all event categories to find events that match your interests and passions.
             </p>
+
+            {/* Quick Stats with staggered animations */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 max-w-3xl mx-auto">
+              <div className={`text-center ${getAnimationClass('animate-slide-up')}`} style={getAnimationStyle('0.3s')}>
+                <div className="text-2xl font-bold text-purple-600 mb-1">{statistics.totalCategories}</div>
+                <div className="text-sm text-gray-600">Total Categories</div>
+              </div>
+              <div className={`text-center ${getAnimationClass('animate-slide-up')}`} style={getAnimationStyle('0.35s')}>
+                <div className="text-2xl font-bold text-green-600 mb-1">{statistics.activeCategories}</div>
+                <div className="text-sm text-gray-600">Active Categories</div>
+              </div>
+              <div className={`text-center ${getAnimationClass('animate-slide-up')}`} style={getAnimationStyle('0.4s')}>
+                <div className="text-2xl font-bold text-blue-600 mb-1">{statistics.categoriesWithEvents}</div>
+                <div className="text-sm text-gray-600">With Events</div>
+              </div>
+              <div className={`text-center ${getAnimationClass('animate-slide-up')}`} style={getAnimationStyle('0.45s')}>
+                <div className="text-2xl font-bold text-orange-600 mb-1">{statistics.totalEvents}</div>
+                <div className="text-sm text-gray-600">Total Events</div>
+              </div>
+            </div>
           </div>
         </div>
+      </section>
 
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8 animate-fade-in" style={{animationDelay: '0.1s'}}>
-          <Card className="bg-white/80 backdrop-blur-sm shadow-lg border border-white/20 hover:shadow-xl transition-all duration-300">
+      <div className="relative container mx-auto px-4 pb-20">
+        {/* Stats Cards with animation */}
+        <div className={`grid grid-cols-1 md:grid-cols-4 gap-6 mb-8 ${getAnimationClass('animate-slide-up')}`} style={getAnimationStyle('0.5s')}>
+          <Card className="bg-white/80 backdrop-blur-sm shadow-lg border border-white/20 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Categories</CardTitle>
               <Icon name="Folder" className="h-4 w-4 text-purple-600" />
@@ -169,7 +267,7 @@ export const CategoriesPage = () => {
             </CardContent>
           </Card>
           
-          <Card className="bg-white/80 backdrop-blur-sm shadow-lg border border-white/20 hover:shadow-xl transition-all duration-300">
+          <Card className="bg-white/80 backdrop-blur-sm shadow-lg border border-white/20 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Active Categories</CardTitle>
               <Icon name="CheckCircle" className="h-4 w-4 text-green-600" />
@@ -182,7 +280,7 @@ export const CategoriesPage = () => {
             </CardContent>
           </Card>
           
-          <Card className="bg-white/80 backdrop-blur-sm shadow-lg border border-white/20 hover:shadow-xl transition-all duration-300">
+          <Card className="bg-white/80 backdrop-blur-sm shadow-lg border border-white/20 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">With Events</CardTitle>
               <Icon name="Calendar" className="h-4 w-4 text-blue-600" />
@@ -195,7 +293,7 @@ export const CategoriesPage = () => {
             </CardContent>
           </Card>
           
-          <Card className="bg-white/80 backdrop-blur-sm shadow-lg border border-white/20 hover:shadow-xl transition-all duration-300">
+          <Card className="bg-white/80 backdrop-blur-sm shadow-lg border border-white/20 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Events</CardTitle>
               <Icon name="TrendingUp" className="h-4 w-4 text-orange-600" />
@@ -210,7 +308,7 @@ export const CategoriesPage = () => {
         </div>
 
         {/* Search and Filter */}
-        <Card className="mb-6 bg-white/80 backdrop-blur-sm shadow-lg border border-white/20 animate-fade-in" style={{animationDelay: '0.2s'}}>
+        <Card className={`mb-6 bg-white/80 backdrop-blur-sm shadow-lg border border-white/20 ${getAnimationClass('animate-slide-up')}`} style={getAnimationStyle('0.6s')}>
           <CardHeader>
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div>
@@ -234,8 +332,8 @@ export const CategoriesPage = () => {
             {enhancedCategories.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {enhancedCategories.map((category, index) => (
-                  <div key={category.id} className="animate-fade-in" style={{animationDelay: `${0.1 + index * 0.05}s`}}>
-                    <Card className="h-full bg-white hover:shadow-lg transition-all duration-300 hover:-translate-y-1 border border-gray-100">
+                  <div key={category.id} className={getAnimationClass('animate-slide-up')} style={getAnimationStyle(`${0.7 + index * 0.05}s`)}>
+                    <Card className="h-full bg-white hover:shadow-lg transition-all duration-300 hover:-translate-y-1 border border-gray-100 transform">
                       <CardContent className="p-6">
                         <div className="flex items-start justify-between mb-4">
                           <div className="flex-1">
@@ -259,11 +357,11 @@ export const CategoriesPage = () => {
                         <div className="space-y-3">
                           {/* Statistics */}
                           <div className="grid grid-cols-2 gap-4">
-                            <div className="text-center p-3 bg-blue-50 rounded-lg">
+                            <div className="text-center p-3 bg-blue-50 rounded-lg transition-all duration-300 hover:bg-blue-100">
                               <div className="text-xl font-bold text-blue-600">{category.eventCount}</div>
                               <div className="text-xs text-blue-600">Total Events</div>
                             </div>
-                            <div className="text-center p-3 bg-green-50 rounded-lg">
+                            <div className="text-center p-3 bg-green-50 rounded-lg transition-all duration-300 hover:bg-green-100">
                               <div className="text-xl font-bold text-green-600">{category.activeEventCount}</div>
                               <div className="text-xs text-green-600">Active Events</div>
                             </div>
@@ -271,11 +369,11 @@ export const CategoriesPage = () => {
 
                           {category.eventCount > 0 && (
                             <div className="grid grid-cols-2 gap-4">
-                              <div className="text-center p-2 bg-purple-50 rounded">
+                              <div className="text-center p-2 bg-purple-50 rounded transition-all duration-300 hover:bg-purple-100">
                                 <div className="text-sm font-semibold text-purple-600">{category.totalRegistrations}</div>
                                 <div className="text-xs text-purple-600">Registrations</div>
                               </div>
-                              <div className="text-center p-2 bg-orange-50 rounded">
+                              <div className="text-center p-2 bg-orange-50 rounded transition-all duration-300 hover:bg-orange-100">
                                 <div className="text-sm font-semibold text-orange-600">{category.averageCapacity}</div>
                                 <div className="text-xs text-orange-600">Avg Capacity</div>
                               </div>
@@ -287,7 +385,7 @@ export const CategoriesPage = () => {
                             <Button 
                               variant="outline" 
                               size="sm" 
-                              className="flex-1 bg-white hover:bg-blue-50 border-gray-200 hover:border-blue-300 transition-colors"
+                              className="flex-1 bg-white hover:bg-blue-50 border-gray-200 hover:border-blue-300 transition-all duration-300 transform hover:scale-105"
                               asChild
                             >
                               <Link to={`/events?categoryId=${category.id}`}>
@@ -296,7 +394,7 @@ export const CategoriesPage = () => {
                               </Link>
                             </Button>
                             {category.eventCount > 0 && (
-                              <Badge variant="secondary" className="bg-gray-100 text-gray-600 px-2 py-1">
+                              <Badge variant="secondary" className="bg-gray-100 text-gray-600 px-2 py-1 transition-all duration-300 hover:bg-gray-200">
                                 {category.eventCount} events
                               </Badge>
                             )}
@@ -308,8 +406,10 @@ export const CategoriesPage = () => {
                 ))}
               </div>
             ) : (
-              <div className="text-center py-12">
-                <Icon name="Search" className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+              <div className={`text-center py-12 ${getAnimationClass('animate-slide-up')}`} style={getAnimationStyle('0.7s')}>
+                <div className={`mx-auto w-24 h-24 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center mb-6 ${getAnimationClass('animate-float')}`}>
+                  <Icon name="Search" className="h-12 w-12 text-gray-400" />
+                </div>
                 <h3 className="text-xl font-semibold text-gray-900 mb-2">No categories found</h3>
                 <p className="text-gray-600 mb-6">
                   {debouncedSearchTerm 
@@ -321,7 +421,7 @@ export const CategoriesPage = () => {
                   <Button 
                     variant="outline" 
                     onClick={() => setSearchTerm('')}
-                    className="bg-white hover:bg-gray-50"
+                    className="bg-white hover:bg-gray-50 transition-all duration-300 hover:shadow-md transform hover:scale-105"
                   >
                     <Icon name="X" className="mr-2 h-4 w-4" />
                     Clear Search
@@ -333,8 +433,8 @@ export const CategoriesPage = () => {
         </Card>
 
         {/* Back to Events */}
-        <div className="text-center animate-fade-in" style={{animationDelay: '0.4s'}}>
-          <Button asChild className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700">
+        <div className={`text-center ${getAnimationClass('animate-slide-up')}`} style={getAnimationStyle(`${0.7 + enhancedCategories.length * 0.05}s`)}>
+          <Button asChild className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white transition-all duration-300 hover:shadow-lg transform hover:scale-105">
             <Link to="/events">
               <Icon name="ArrowLeft" className="mr-2 h-4 w-4" />
               Browse All Events
@@ -342,6 +442,61 @@ export const CategoriesPage = () => {
           </Button>
         </div>
       </div>
+
+      {/* Enhanced CSS animations - same as EventsPage */}
+      <style>{`
+        @keyframes float {
+          0%, 100% { transform: translateY(0px) rotate(0deg); }
+          50% { transform: translateY(-20px) rotate(5deg); }
+        }
+        @keyframes float-delay-1 {
+          0%, 100% { transform: translateY(0px) rotate(0deg); }
+          50% { transform: translateY(-15px) rotate(-3deg); }
+        }
+        @keyframes float-delay-2 {
+          0%, 100% { transform: translateY(0px) rotate(0deg); }
+          50% { transform: translateY(-25px) rotate(8deg); }
+        }
+        @keyframes float-delay-3 {
+          0%, 100% { transform: translateY(0px) rotate(0deg); }
+          50% { transform: translateY(-18px) rotate(-5deg); }
+        }
+        @keyframes slide-down {
+          from { opacity: 0; transform: translateY(-20px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes slide-up {
+          from { opacity: 0; transform: translateY(20px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes slide-width {
+          from { width: 0; }
+          to { width: 100%; }
+        }
+        @keyframes gradient {
+          0%, 100% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+        }
+        @keyframes fade-in {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        .animate-float { animation: float 6s ease-in-out infinite; }
+        .animate-float-delay-1 { animation: float-delay-1 8s ease-in-out infinite; }
+        .animate-float-delay-2 { animation: float-delay-2 7s ease-in-out infinite; }
+        .animate-float-delay-3 { animation: float-delay-3 9s ease-in-out infinite; }
+        .animate-slide-down { animation: slide-down 0.4s ease-out forwards; opacity: 0; }
+        .animate-slide-up { animation: slide-up 0.4s ease-out forwards; opacity: 0; }
+        .animate-slide-width { animation: slide-width 0.6s ease-out 0.2s forwards; width: 0; }
+        .animate-gradient { 
+          background-size: 200% 200%;
+          animation: gradient 3s ease infinite;
+        }
+        .animate-fade-in { 
+          animation: fade-in 0.3s ease-out forwards; 
+          opacity: 0; 
+        }
+      `}</style>
     </div>
   )
 }

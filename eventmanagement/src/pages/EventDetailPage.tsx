@@ -48,6 +48,10 @@ export const EventDetailPage = () => {
   const navigate = useNavigate()
   const { isAuthenticated } = useAuth()
   const [showCancelDialog, setShowCancelDialog] = useState(false)
+  const [shareButtonText, setShareButtonText] = useState('Share')
+
+  // Always show entrance animations for event details (each event is unique content)
+  const [] = useState(true)
 
   const eventId = id ? parseInt(id) : 0
 
@@ -102,6 +106,73 @@ export const EventDetailPage = () => {
 
   // Add SignalR integration for this event
   useEventSignalR(eventId)
+
+  // Helper function to conditionally add animation classes (always enabled for event details)
+  const getAnimationClass = (baseClass: string) => {
+    return baseClass // Always show animations for event details
+  }
+
+  // Helper function to get animation style (always enabled for event details)
+  const getAnimationStyle = (delay: string) => {
+    return { animationDelay: delay } // Always show animations for event details
+  }
+
+  // Share functionality
+  const handleShare = async () => {
+    if (!event) return
+
+    const shareData = {
+      title: event.title,
+      text: `Check out this event: ${event.title} - ${new Date(event.startDateTime).toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      })} at ${event.venue}`,
+      url: window.location.href
+    }
+
+    try {
+      // Try to use Web Share API first (available on mobile and some desktop browsers)
+      if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+        await navigator.share(shareData)
+        return
+      }
+    } catch (error) {
+      console.log('Web Share API failed, falling back to clipboard')
+    }
+
+    // Fallback to copying URL to clipboard
+    try {
+      await navigator.clipboard.writeText(window.location.href)
+      setShareButtonText('Link Copied!')
+      
+      // Reset button text after 2 seconds
+      setTimeout(() => {
+        setShareButtonText('Share')
+      }, 2000)
+    } catch (error) {
+      // Final fallback for very old browsers
+      const textArea = document.createElement('textarea')
+      textArea.value = window.location.href
+      document.body.appendChild(textArea)
+      textArea.select()
+      try {
+        document.execCommand('copy')
+        setShareButtonText('Link Copied!')
+        setTimeout(() => {
+          setShareButtonText('Share')
+        }, 2000)
+      } catch (err) {
+        console.error('Failed to copy to clipboard:', err)
+        setShareButtonText('Share Failed')
+        setTimeout(() => {
+          setShareButtonText('Share')
+        }, 2000)
+      }
+      document.body.removeChild(textArea)
+    }
+  }
 
   const handleRegister = async () => {
     if (!isAuthenticated) {
@@ -219,7 +290,7 @@ export const EventDetailPage = () => {
 
       <div className="relative container mx-auto px-4 py-8">
         {/* Breadcrumb */}
-        <nav className="flex items-center space-x-2 text-sm text-gray-500 mb-8 animate-fade-in">
+        <nav className={`flex items-center space-x-2 text-sm text-gray-500 mb-8 ${getAnimationClass('animate-fade-in')}`}>
           <Link to="/" className="hover:text-blue-600 transition-colors font-medium">Home</Link>
           <Icon name="ChevronRight" className="h-4 w-4" />
           <Link to="/events" className="hover:text-blue-600 transition-colors font-medium">Events</Link>
@@ -231,7 +302,7 @@ export const EventDetailPage = () => {
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-8">
             {/* Event Image */}
-            <div className="relative animate-fade-in" style={{animationDelay: '0.1s'}}>
+            <div className={`relative ${getAnimationClass('animate-fade-in')}`} style={getAnimationStyle('0.1s')}>
               <div className="relative overflow-hidden rounded-2xl shadow-2xl">
                 <img
                   src={constructImageUrl(event.primaryImageUrl)}
@@ -279,7 +350,7 @@ export const EventDetailPage = () => {
             </div>
 
             {/* Event Title and Description */}
-            <div className="animate-fade-in" style={{animationDelay: '0.2s'}}>
+            <div className={getAnimationClass('animate-fade-in')} style={getAnimationStyle('0.2s')}>
               <Card className="bg-white/80 backdrop-blur-sm shadow-lg border border-white/20 hover:shadow-xl transition-all duration-300">
                 <CardContent className="p-8">
                   <h2 className="text-2xl font-bold text-gray-900 mb-4">About This Event</h2>
@@ -289,7 +360,7 @@ export const EventDetailPage = () => {
             </div>
 
             {/* Tabs */}
-            <div className="animate-fade-in" style={{animationDelay: '0.3s'}}>
+            <div className={getAnimationClass('animate-fade-in')} style={getAnimationStyle('0.3s')}>
               <Tabs defaultValue="details" className="w-full">
                 <TabsList className="grid w-full grid-cols-3 bg-white/80 backdrop-blur-sm shadow-md border border-white/20">
                   <TabsTrigger 
@@ -474,9 +545,13 @@ export const EventDetailPage = () => {
                           <Icon name="Navigation" className="mr-2 h-4 w-4" />
                           Get Directions
                         </Button>
-                        <Button variant="outline" className="flex-1 bg-white hover:bg-blue-50 border-gray-200 hover:border-blue-300 transition-colors">
+                        <Button 
+                          variant="outline" 
+                          className="flex-1 bg-white hover:bg-blue-50 border-gray-200 hover:border-blue-300 transition-colors"
+                          onClick={handleShare}
+                        >
                           <Icon name="Share" className="mr-2 h-4 w-4" />
-                          Share Location
+                          {shareButtonText}
                         </Button>
                       </div>
                     </CardContent>
@@ -489,7 +564,7 @@ export const EventDetailPage = () => {
           {/* Sidebar */}
           <div className="space-y-6">
             {/* Registration Card */}
-            <div className="animate-fade-in" style={{animationDelay: '0.4s'}}>
+            <div className={getAnimationClass('animate-fade-in')} style={getAnimationStyle('0.4s')}>
               <Card className="bg-white/90 backdrop-blur-sm shadow-xl border border-white/20 sticky top-8 hover:shadow-2xl transition-all duration-300">
                 <CardHeader>
                   <CardTitle className="text-center text-xl">
@@ -574,23 +649,23 @@ export const EventDetailPage = () => {
                     </div>
                   ) : (
                     <Button 
-                      className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg hover:shadow-xl transition-all duration-300 h-12 text-lg font-semibold" 
+                      className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 h-12 text-lg font-semibold" 
                       disabled={event.remainingCapacity === 0 || !event.isRegistrationOpen || isRegistering}
                       onClick={handleRegister}
                     >
                       {isRegistering ? (
                         <>
-                          <Icon name="Loader2" className="mr-2 h-5 w-5 animate-spin" />
+                          <Icon name="Loader2" className="mr-2 h-5 w-5 animate-spin text-white" />
                           Registering...
                         </>
                       ) : event.remainingCapacity === 0 ? (
                         <>
-                          <Icon name="X" className="mr-2 h-5 w-5" />
+                          <Icon name="X" className="mr-2 h-5 w-5 text-white" />
                           Event Full
                         </>
                       ) : !event.isRegistrationOpen ? (
                         <>
-                          <Icon name="Lock" className="mr-2 h-5 w-5" />
+                          <Icon name="Lock" className="mr-2 h-5 w-5 text-white" />
                           Registration Closed
                         </>
                       ) : !isAuthenticated ? (
@@ -601,22 +676,25 @@ export const EventDetailPage = () => {
                     </Button>
                   )}
 
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" className="flex-1 bg-white hover:bg-red-50 border-gray-200 hover:border-red-300 transition-colors">
-                      <Icon name="Heart" className="mr-2 h-4 w-4" />
-                      Save
-                    </Button>
-                    <Button variant="outline" size="sm" className="flex-1 bg-white hover:bg-blue-50 border-gray-200 hover:border-blue-300 transition-colors">
-                      <Icon name="Share" className="mr-2 h-4 w-4" />
-                      Share
-                    </Button>
-                  </div>
+                  {/* Share Button Only */}
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full bg-white hover:bg-blue-50 border-gray-200 hover:border-blue-300 transition-colors"
+                    onClick={handleShare}
+                  >
+                    <Icon 
+                      name={shareButtonText === 'Link Copied!' ? "Check" : "Share"} 
+                      className="mr-2 h-4 w-4" 
+                    />
+                    {shareButtonText}
+                  </Button>
                 </CardContent>
               </Card>
             </div>
 
             {/* Quick Info */}
-            <div className="animate-fade-in" style={{animationDelay: '0.5s'}}>
+            <div className={getAnimationClass('animate-fade-in')} style={getAnimationStyle('0.5s')}>
               <Card className="bg-white/80 backdrop-blur-sm shadow-lg border border-white/20 hover:shadow-xl transition-all duration-300">
                 <CardHeader>
                   <CardTitle className="text-lg">Quick Info</CardTitle>
@@ -648,7 +726,7 @@ export const EventDetailPage = () => {
 
             {/* Related Events */}
             {relatedEvents.length > 0 && (
-              <div className="animate-fade-in" style={{animationDelay: '0.6s'}}>
+              <div className={getAnimationClass('animate-fade-in')} style={getAnimationStyle('0.6s')}>
                 <Card className="bg-white/80 backdrop-blur-sm shadow-lg border border-white/20 hover:shadow-xl transition-all duration-300">
                   <CardHeader>
                     <CardTitle className="text-lg">Related Events</CardTitle>
@@ -702,6 +780,18 @@ export const EventDetailPage = () => {
         variant="destructive"
         confirmText="Cancel Registration"
       />
+
+      {/* Enhanced CSS animations */}
+      <style>{`
+        @keyframes fade-in {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        .animate-fade-in { 
+          animation: fade-in 0.4s ease-out forwards; 
+          opacity: 0; 
+        }
+      `}</style>
     </div>
   )
 }

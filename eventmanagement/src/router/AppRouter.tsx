@@ -3,6 +3,7 @@ import { RootLayout } from '@/layouts/RootLayout'
 import { AuthLayout } from '@/layouts/AuthLayout'
 import { DashboardLayout } from '@/layouts/DashboardLayout'
 import ProtectedRoute from './ProtectedRoute'
+import { useScrollToTop } from '@/shared/hooks/useScrollToTop'
 
 // Pages
 import { HomePage } from '@/pages/HomePage'
@@ -24,9 +25,15 @@ import { NotFoundPage } from '@/pages/NotFoundPage'
 import { UnauthorizedPage } from '@/pages/UnauthorizedPage'
 import { CategoriesPage } from '@/pages/CategoriesPage'
 
+const ScrollToTop = () => {
+  useScrollToTop()
+  return null
+}
+
 export const AppRouter = () => {
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <Routes>
         {/* Public Routes */}
         <Route path="/" element={<RootLayout />}>
