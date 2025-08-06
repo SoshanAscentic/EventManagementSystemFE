@@ -1,0 +1,22 @@
+{
+  "navigationFallback": {
+    "rewrite": "/index.html",
+    "exclude": ["/static/*", "/*.css", "/*.js", "/*.ico", "/*.png"]
+  },
+  "mimeTypes": {
+    ".js": "text/javascript",
+    ".json": "application/json"
+  },
+  "globalHeaders": {
+    "cache-control": "must-revalidate, max-age=6000"
+  },
+  "trailingSlash": "never",
+  "routes": [
+    {
+      "route": "/assets/*",
+      "headers": {
+        "cache-control": "public, max-age=31536000, immutable"
+      }
+    }
+  ]
+}

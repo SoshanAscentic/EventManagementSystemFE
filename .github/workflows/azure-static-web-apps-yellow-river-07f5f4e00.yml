@@ -36,6 +36,11 @@ jobs:
         run: |
           cd eventmanagement
           NODE_ENV=production npm run build
+      
+      - name: Copy Static Web App config
+        run: |
+          cd eventmanagement
+          cp public/.staticwebapp.config.json dist/.staticwebapp.config.json || echo "Config file not found in public folder"
       - name: Deploy
         id: builddeploy
         uses: Azure/static-web-apps-deploy@v1
