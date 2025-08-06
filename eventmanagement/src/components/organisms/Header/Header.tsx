@@ -117,8 +117,8 @@ export const Header = ({ className }: HeaderProps) => {
                       <Icon name="Bell" className="h-5 w-5 text-gray-600 transition-colors duration-300 hover:text-blue-600" />
                       {unreadCount > 0 && (
                         <Badge 
-                          variant="destructive" 
-                          className="absolute -right-1 -top-1 h-5 w-5 animate-pulse border-2 border-white p-0 text-xs flex items-center justify-center shadow-lg"
+                          variant="destructive"
+                          className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs bg-red-500 text-white border-2 border-white font-bold shadow-lg"
                         >
                           {unreadCount > 99 ? '99+' : unreadCount}
                         </Badge>

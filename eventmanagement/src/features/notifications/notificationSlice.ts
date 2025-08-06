@@ -2,7 +2,10 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit'
 
 interface Notification {
   id: string
-  type: 'info' | 'success' | 'warning' | 'error'
+  type: 'info' | 'success' | 'warning' | 'error' | 
+        'EventCreated' | 'EventUpdated' | 'EventCancelled' |
+        'RegistrationConfirmed' | 'RegistrationCancelled' | 
+        'EventReminder' | 'EventCapacityReached'
   title: string
   message: string
   timestamp: number

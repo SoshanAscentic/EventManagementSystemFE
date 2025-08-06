@@ -17,6 +17,7 @@ interface NotificationTypeConfig {
 }
 
 const notificationTypeConfigs: Record<string, NotificationTypeConfig> = {
+  // Basic types
   'success': {
     icon: 'CheckCircle',
     color: 'text-green-600',
@@ -44,6 +45,56 @@ const notificationTypeConfigs: Record<string, NotificationTypeConfig> = {
     bgColor: 'bg-blue-50', 
     borderColor: 'border-blue-200',
     priority: 1
+  },
+  // Event-specific types
+  'EventCreated': {
+    icon: 'Calendar',
+    color: 'text-green-600',
+    bgColor: 'bg-green-50',
+    borderColor: 'border-green-200',
+    priority: 2
+  },
+  'EventUpdated': {
+    icon: 'Edit3',
+    color: 'text-blue-600',
+    bgColor: 'bg-blue-50',
+    borderColor: 'border-blue-200',
+    priority: 2
+  },
+  'EventCancelled': {
+    icon: 'X',
+    color: 'text-red-600',
+    bgColor: 'bg-red-50',
+    borderColor: 'border-red-200',
+    priority: 4
+  },
+  'RegistrationConfirmed': {
+    icon: 'CheckCircle',
+    color: 'text-green-600',
+    bgColor: 'bg-green-50',
+    borderColor: 'border-green-200',
+    priority: 2
+  },
+  'RegistrationCancelled': {
+    icon: 'XCircle',
+    color: 'text-orange-600',
+    bgColor: 'bg-orange-50',
+    borderColor: 'border-orange-200',
+    priority: 3
+  },
+  'EventReminder': {
+    icon: 'Clock',
+    color: 'text-purple-600',
+    bgColor: 'bg-purple-50',
+    borderColor: 'border-purple-200',
+    priority: 3
+  },
+  'EventCapacityReached': {
+    icon: 'Users',
+    color: 'text-yellow-600',
+    bgColor: 'bg-yellow-50',
+    borderColor: 'border-yellow-200',
+    priority: 3
   }
 }
 
@@ -80,21 +131,25 @@ export const NotificationPanel = () => {
         case 'unread':
           return !notification.read
         case 'important':
-          return ['error', 'warning'].includes(notification.type) && !notification.read
+          // Include both basic error/warning types AND event-specific important types
+          return !notification.read && (
+            ['error', 'warning'].includes(notification.type) ||
+            ['EventCancelled', 'RegistrationCancelled', 'EventCapacityReached'].includes(notification.type)
+          )
         default:
           return true
       }
     })
     .sort((a, b) => {
-      // Sort by priority (errors first, then warnings, etc.) and then by timestamp
+      // Sort by priority and timestamp
       const aConfig = notificationTypeConfigs[a.type]
       const bConfig = notificationTypeConfigs[b.type]
       
       if (aConfig && bConfig && aConfig.priority !== bConfig.priority) {
-        return bConfig.priority - aConfig.priority // Higher priority first
+        return bConfig.priority - aConfig.priority
       }
       
-      return b.timestamp - a.timestamp // Newer first
+      return b.timestamp - a.timestamp
     })
 
   const handleMarkAsRead = (id: string) => {
@@ -164,40 +219,68 @@ export const NotificationPanel = () => {
 
   const handleTestNotification = () => {
     const testNotifications = [
+      // Test all notification types
       {
         id: `test-event-created-${Date.now()}`,
-        type: 'success' as const,
+        type: 'EventCreated',
         title: '🎉 New Event Available',
-        message: 'A new workshop "Advanced React Patterns" has been created and is now open for registration.',
+        message: 'A new workshop "Advanced React Patterns" has been created.',
         timestamp: Date.now(),
         read: false,
-        data: { eventId: 123, eventTitle: 'Advanced React Patterns' },
-        actionUrl: '/events/123'
+        data: { eventId: 123 }
       },
       {
         id: `test-registration-confirmed-${Date.now()}`,
-        type: 'success' as const, 
+        type: 'RegistrationConfirmed', 
         title: '✅ Registration Confirmed',
-        message: 'Your registration for "JavaScript Conference 2025" has been confirmed. Event starts on Dec 15, 2025.',
+        message: 'Your registration for "JavaScript Conference 2025" has been confirmed.',
         timestamp: Date.now(),
         read: false,
-        data: { eventId: 456, registrationId: 789 },
-        actionUrl: '/registrations'
+        data: { eventId: 456 }
+      },
+      {
+        id: `test-event-cancelled-${Date.now()}`,
+        type: 'EventCancelled',
+        title: '❌ Event Cancelled',
+        message: 'The "React Workshop" has been cancelled due to low enrollment.',
+        timestamp: Date.now(),
+        read: false,
+        data: { eventId: 789 }
       },
       {
         id: `test-event-reminder-${Date.now()}`,
-        type: 'warning' as const,
-        title: '⏰ Event Reminder', 
-        message: 'Reminder: "React Workshop" starts in 2 hours. Don\'t forget to join!',
+        type: 'EventReminder',
+        title: '⏰ Event Reminder',
+        message: 'Reminder: "React Workshop" starts in 2 hours.',
         timestamp: Date.now(),
         read: false,
         data: { eventId: 789, hoursUntilEvent: 2 }
+      },
+      {
+        id: `test-capacity-reached-${Date.now()}`,
+        type: 'EventCapacityReached',
+        title: '🏆 Event Full',
+        message: 'The "JavaScript Conference 2025" has reached maximum capacity.',
+        timestamp: Date.now(),
+        read: false,
+        data: { eventId: 456 }
+      },
+      {
+        id: `test-registration-cancelled-${Date.now()}`,
+        type: 'RegistrationCancelled',
+        title: '🚫 Registration Cancelled',
+        message: 'Your registration for "Vue.js Workshop" has been cancelled.',
+        timestamp: Date.now(),
+        read: false,
+        data: { eventId: 101 }
       }
     ]
 
-    // Add a random test notification
-    const randomNotification = testNotifications[Math.floor(Math.random() * testNotifications.length)]
-    dispatch(addNotification(randomNotification))
+    // Add all test notifications to see them
+    testNotifications.forEach(notification => {
+      console.log('Adding test notification:', notification)
+      dispatch(addNotification(notification))
+    })
   }
 
   const handleTestSignalR = async () => {
@@ -321,12 +404,18 @@ export const NotificationPanel = () => {
           {/* Notification counts */}
           <div className="flex gap-1 ml-2">
             {unreadCount > 0 && (
-              <Badge variant="destructive" className="text-xs">
+              <Badge 
+                variant="destructive" 
+                className="text-xs bg-red-500 text-white border-red-600 font-semibold shadow-sm"
+              >
                 {unreadCount > 99 ? '99+' : unreadCount}
               </Badge>
             )}
             {importantCount > 0 && (
-              <Badge variant="outline" className="text-xs bg-orange-50 text-orange-700 border-orange-200">
+              <Badge 
+                variant="outline" 
+                className="text-xs bg-orange-500 text-white border-orange-600 font-semibold shadow-sm"
+              >
                 {importantCount} urgent
               </Badge>
             )}

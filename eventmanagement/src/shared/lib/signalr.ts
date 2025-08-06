@@ -453,8 +453,6 @@ class RobustSignalRService {
   private setupEventHandlers(): void {
     if (!this.connection) return
 
-    console.log('SignalR: Setting up event handlers')
-
     // Enhanced connection state management
     this.connection.onclose((error) => {
       console.log('🔴 SignalR: Connection closed', error)
@@ -493,11 +491,11 @@ class RobustSignalRService {
       }))
     })
 
-    // Enhanced notification event listeners
+    // Register ALL notification event listeners
     const notificationEvents = [
       'ReceiveNotification',
-      'NotificationSent',
-      'EventNotification', 
+      'NotificationSent', 
+      'EventNotification',
       'UserNotification',
       'BroadcastNotification',
       'AdminNotification',
@@ -505,7 +503,7 @@ class RobustSignalRService {
       'EventUpdated', 
       'EventCancelled',
       'RegistrationConfirmed',
-      'RegistrationCancelled',
+      'RegistrationCancelled', 
       'EventReminder',
       'EventCapacityReached'
     ]
@@ -513,14 +511,18 @@ class RobustSignalRService {
     notificationEvents.forEach(eventName => {
       this.connection!.on(eventName, (notification: NotificationData) => {
         console.log(`🔔 SignalR: Received ${eventName}:`, notification)
-        this.handleNotification(notification, eventName)
+        
+        // Ensure the notification has the correct type
+        const processedNotification = {
+          ...notification,
+          type: notification.type || eventName // Use eventName as fallback type
+        }
+        
+        this.handleNotification(processedNotification, eventName)
       })
     })
 
-    // Test events
-    this.connection.on('Ping', () => {
-      console.log('SignalR: Received ping')
-    })
+    console.log(`SignalR: Registered ${notificationEvents.length} notification event handlers`)
   }
 
   private handleNotification(notification: NotificationData, eventType?: string): void {
@@ -549,20 +551,27 @@ class RobustSignalRService {
     }
   }
 
-  private mapNotificationType(type: string): 'info' | 'success' | 'warning' | 'error' {
-    const typeMap: Record<string, 'info' | 'success' | 'warning' | 'error'> = {
-      'EventCreated': 'success',
-      'RegistrationConfirmed': 'success',
+  // Update the mapNotificationType to preserve event-specific types
+  private mapNotificationType(type: string): string {
+    // Don't map event-specific types, return them as-is for proper handling
+    const eventSpecificTypes = [
+      'EventCreated', 'EventUpdated', 'EventCancelled',
+      'RegistrationConfirmed', 'RegistrationCancelled', 
+      'EventReminder', 'EventCapacityReached'
+    ]
+    
+    if (eventSpecificTypes.includes(type)) {
+      return type // Return event-specific type unchanged
+    }
+
+    // Map basic notification types
+    const typeMap: Record<string, string> = {
       'success': 'success',
-      'EventUpdated': 'warning',
-      'EventReminder': 'warning',
-      'EventCapacityReached': 'warning',
-      'warning': 'warning',
-      'EventCancelled': 'error',
-      'RegistrationCancelled': 'error',
+      'warning': 'warning', 
       'error': 'error',
       'info': 'info'
     }
+    
     return typeMap[type] || 'info'
   }
 
