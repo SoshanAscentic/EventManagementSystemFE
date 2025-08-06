@@ -20,9 +20,9 @@ interface NotificationData {
 // Get API URL from environment variables with fallback
 const getApiBaseUrl = () => {
   const useLocal = import.meta.env.VITE_USE_LOCAL_API === 'true'
-  const productionUrl = import.meta.env.VITE_PRODUCTION_API_URL || 'https://wa-eventhub-backend-dev-southeastasia-g9f8ebhrech0g9ff.southeastasia-01.azurewebsites.net'
-  const localUrl = import.meta.env.VITE_LOCAL_API_URL || 'https://localhost:7026'
-  
+  const productionUrl = import.meta.env.VITE_PRODUCTION_API_URL
+  const localUrl = import.meta.env.VITE_LOCAL_API_URL
+
   if (useLocal) {
     console.log('SignalR: Using local API:', localUrl)
     return localUrl

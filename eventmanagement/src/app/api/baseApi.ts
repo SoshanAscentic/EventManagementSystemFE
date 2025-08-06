@@ -5,8 +5,8 @@ import { getTokenFromCookie } from '@/features/auth/api/authApi'
 // Get API URL from environment variables with fallback
 const getApiBaseUrl = () => {
   const useLocal = import.meta.env.VITE_USE_LOCAL_API === 'true'
-  const productionUrl = import.meta.env.VITE_PRODUCTION_API_URL || 'https://wa-eventhub-backend-dev-southeastasia-g9f8ebhrech0g9ff.southeastasia-01.azurewebsites.net'
-  const localUrl = import.meta.env.VITE_LOCAL_API_URL || 'https://localhost:7026'
+  const productionUrl = import.meta.env.VITE_PRODUCTION_API_URL
+  const localUrl = import.meta.env.VITE_LOCAL_API_URL
   
   if (useLocal) {
     console.log('Using local API:', localUrl)
@@ -59,7 +59,7 @@ const baseQueryWithReauth = async (args: any, api: any, extraOptions: any) => {
       console.warn('Production API failed, attempting fallback to local API...')
       
       // Create a fallback query with local URL
-      const localUrl = import.meta.env.VITE_LOCAL_API_URL || 'https://localhost:7026'
+      const localUrl = import.meta.env.VITE_LOCAL_API_URL
       const fallbackQuery = fetchBaseQuery({
         baseUrl: `${localUrl}/api`,
         mode: 'cors',
