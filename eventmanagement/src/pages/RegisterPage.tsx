@@ -91,10 +91,10 @@ export const RegisterPage = () => {
       <div className="relative text-center mb-6 animate-fade-in">
         <Link to="/" className="flex justify-center items-center space-x-2 hover:opacity-80 transition-opacity duration-200">
           <div className="flex justify-center items-center space-x-2">
-            <div className="rounded-md bg-gradient-to-r from-green-600 to-purple-600 p-2">
+            <div className="rounded-md bg-gradient-to-r from-blue-600 to-purple-600 p-2">
               <Icon name="Calendar" className="h-8 w-8 text-white" />
             </div>
-            <span className="text-3xl font-bold bg-gradient-to-r from-green-600 to-purple-600 bg-clip-text text-transparent">
+            <span className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
               EventHub
             </span>
           </div>
@@ -104,7 +104,7 @@ export const RegisterPage = () => {
       <div className="relative w-full max-w-2xl mx-auto px-4 animate-fade-in">
         <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl border border-white/20 overflow-hidden">
           {/* Header with gradient */}
-          <div className="bg-gradient-to-r from-green-600 via-blue-600 to-purple-600 p-6 text-center relative">
+          <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-6 text-center relative">
             <div className="absolute inset-0 bg-black/10"></div>
             <div className="relative">
               <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-sm">
@@ -231,7 +231,7 @@ export const RegisterPage = () => {
               {/* Submit Button */}
               <Button 
                 type="submit" 
-                className="w-full bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 shadow-lg hover:shadow-xl transition-all duration-300 h-12 text-lg font-semibold" 
+                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all duration-300 h-12 text-lg font-semibold" 
                 disabled={isLoading}
               >
                 {isLoading ? (
