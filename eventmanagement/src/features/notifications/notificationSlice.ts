@@ -5,7 +5,9 @@ interface Notification {
   type: 'info' | 'success' | 'warning' | 'error' | 
         'EventCreated' | 'EventUpdated' | 'EventCancelled' |
         'RegistrationConfirmed' | 'RegistrationCancelled' | 
-        'EventReminder' | 'EventCapacityReached'
+        'EventReminder' | 'EventCapacityReached' |
+        'MoreSpotsAvailable' | 'LiveEventUpdate' |
+        'RegistrationMilestone' | 'SpotAvailable' | 'HighDemand'
   title: string
   message: string
   timestamp: number

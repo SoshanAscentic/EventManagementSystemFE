@@ -6,54 +6,53 @@ export const useSignalR = () => {
   const { isAuthenticated, user } = useAuth()
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'connecting'>('disconnected')
   const initializationRef = useRef(false)
-  const statusIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
-    // Prevent multiple initializations
-    if (initializationRef.current) return
-
-    if (isAuthenticated && user) {
-      initializationRef.current = true
-      setConnectionStatus('connecting')
-      
-      const initializeSignalR = async () => {
-        try {
-          await signalRService.start()
-          setConnectionStatus(signalRService.connectionStatus as 'connected' | 'disconnected' | 'connecting')
-        } catch (error) {
-          console.warn('Failed to initialize SignalR:', error)
-          setConnectionStatus('disconnected')
-        }
-      }
-
-      initializeSignalR()
-
-      // Set up status checker
-      statusIntervalRef.current = setInterval(() => {
-        setConnectionStatus(signalRService.connectionStatus as 'connected' | 'disconnected' | 'connecting')
-      }, 2000) // Reduced frequency
+    // Only initialize if authenticated and not already initialized
+    if (!isAuthenticated || !user || initializationRef.current) {
+      return
     }
 
-    return () => {
-      if (statusIntervalRef.current) {
-        clearInterval(statusIntervalRef.current)
-        statusIntervalRef.current = null
+    initializationRef.current = true
+    
+    const initializeSignalR = async () => {
+      try {
+        console.log('SignalR: Initializing connection for user:', user.id)
+        signalRService.enable()
+        await signalRService.start()
+        setConnectionStatus(signalRService.connectionStatus as any)
+      } catch (error) {
+        console.warn('SignalR: Failed to initialize:', error)
+        setConnectionStatus('disconnected')
       }
+    }
+
+    // Small delay to ensure other initialization is complete
+    const timeoutId = setTimeout(initializeSignalR, 1000)
+
+    // Set up status polling
+    const statusInterval = setInterval(() => {
+      setConnectionStatus(signalRService.connectionStatus as any)
+    }, 3000)
+
+    return () => {
+      clearTimeout(timeoutId)
+      clearInterval(statusInterval)
     }
   }, [isAuthenticated, user?.id])
 
-  // Cleanup on unmount
+  // Cleanup on unmount or auth change
   useEffect(() => {
     return () => {
-      if (statusIntervalRef.current) {
-        clearInterval(statusIntervalRef.current)
-      }
-      if (initializationRef.current) {
-        signalRService.stop()
+      if (!isAuthenticated && initializationRef.current) {
+        console.log('SignalR: Cleaning up due to auth change')
+        signalRService.disable()
+        signalRService.stop().catch(console.warn)
         initializationRef.current = false
+        setConnectionStatus('disconnected')
       }
     }
-  }, [])
+  }, [isAuthenticated])
 
   return {
     connectionStatus,
@@ -61,5 +60,7 @@ export const useSignalR = () => {
     isConnecting: connectionStatus === 'connecting',
     joinEventGroup: signalRService.joinEventGroup.bind(signalRService),
     leaveEventGroup: signalRService.leaveEventGroup.bind(signalRService),
+    testConnection: signalRService.testConnection.bind(signalRService),
+    testNotification: signalRService.testNotificationReception.bind(signalRService),
   }
 }

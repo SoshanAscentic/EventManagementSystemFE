@@ -133,6 +133,7 @@ export interface CreateEventRequestWithImages extends CreateEventRequest {
     isNew?: boolean
   }>
 }
+
 // ===== CAPACITY MANAGEMENT TYPES =====
 
 export interface UpdateEventCapacityRequest {

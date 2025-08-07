@@ -491,7 +491,7 @@ class RobustSignalRService {
       }))
     })
 
-    // Register ALL notification event listeners
+    // Register ALL specific notification event listeners
     const notificationEvents = [
       'ReceiveNotification',
       'NotificationSent', 
@@ -505,7 +505,9 @@ class RobustSignalRService {
       'RegistrationConfirmed',
       'RegistrationCancelled', 
       'EventReminder',
-      'EventCapacityReached'
+      'EventCapacityReached',
+      'MoreSpotsAvailable',
+      'LiveEventUpdate'
     ]
 
     notificationEvents.forEach(eventName => {
@@ -515,7 +517,7 @@ class RobustSignalRService {
         // Ensure the notification has the correct type
         const processedNotification = {
           ...notification,
-          type: notification.type || eventName // Use eventName as fallback type
+          type: notification.type || eventName
         }
         
         this.handleNotification(processedNotification, eventName)
@@ -526,54 +528,64 @@ class RobustSignalRService {
   }
 
   private handleNotification(notification: NotificationData, eventType?: string): void {
-    console.log('🔔 SignalR: Processing notification:', notification, 'Event Type:', eventType)
+  console.log('🔔 SignalR: Processing notification:', notification, 'Event Type:', eventType)
 
-    try {
-      const frontendNotification = {
-        id: notification.id || `${eventType}-${Date.now()}`,
-        type: this.mapNotificationType(notification.type || eventType || 'info'),
-        title: notification.title || this.getDefaultTitle(notification.type || eventType),
-        message: notification.message || 'You have a new notification',
-        timestamp: notification.createdAt ? new Date(notification.createdAt).getTime() : Date.now(),
-        read: false,
-        data: notification.data || {},
-        actionUrl: notification.actionUrl
-      }
-
-      console.log('🔔 SignalR: Dispatching frontend notification:', frontendNotification)
-
-      store.dispatch(addNotification(frontendNotification))
-      this.showBrowserNotification(frontendNotification)
-      this.handleSpecificNotificationActions(notification, eventType)
-
-    } catch (error) {
-      console.error('SignalR: Error processing notification:', error)
+  try {
+    const mappedType = this.mapNotificationType(notification.type || eventType || 'info')
+    
+    const frontendNotification = {
+      id: notification.id || `${eventType}-${Date.now()}`,
+      type: mappedType, // ✅ Use the mapped type
+      title: notification.title || this.getDefaultTitle(notification.type || eventType),
+      message: notification.message || 'You have a new notification',
+      timestamp: notification.createdAt ? new Date(notification.createdAt).getTime() : Date.now(),
+      read: false,
+      data: notification.data || {},
+      actionUrl: notification.actionUrl
     }
+
+    console.log('🔔 SignalR: Dispatching frontend notification with type:', frontendNotification.type, frontendNotification)
+
+    store.dispatch(addNotification(frontendNotification))
+    this.showBrowserNotification(frontendNotification)
+    this.handleSpecificNotificationActions(notification, eventType)
+
+  } catch (error) {
+    console.error('SignalR: Error processing notification:', error)
+  }
+}
+
+  private mapNotificationType(type: string): "error" | "info" | "success" | "warning" | "EventCreated" | "EventUpdated" | "EventCancelled" | "RegistrationConfirmed" | "RegistrationCancelled" | "EventReminder" | "EventCapacityReached" | "MoreSpotsAvailable" | "LiveEventUpdate" | "RegistrationMilestone" | "SpotAvailable" | "HighDemand" {
+  // Updated list to match Redux slice
+  const eventSpecificTypes: Array<"EventCreated" | "EventUpdated" | "EventCancelled" | "RegistrationConfirmed" | "RegistrationCancelled" | "EventReminder" | "EventCapacityReached" | "MoreSpotsAvailable" | "LiveEventUpdate" | "RegistrationMilestone" | "SpotAvailable" | "HighDemand"> = [
+    'EventCreated', 
+    'EventUpdated', 
+    'EventCancelled',
+    'RegistrationConfirmed', 
+    'RegistrationCancelled', 
+    'EventReminder', 
+    'EventCapacityReached',
+    'MoreSpotsAvailable',
+    'LiveEventUpdate',
+    'RegistrationMilestone',
+    'SpotAvailable',
+    'HighDemand'
+  ]
+  
+  if (eventSpecificTypes.includes(type as any)) {
+    return type as "EventCreated" | "EventUpdated" | "EventCancelled" | "RegistrationConfirmed" | "RegistrationCancelled" | "EventReminder" | "EventCapacityReached" | "MoreSpotsAvailable" | "LiveEventUpdate" | "RegistrationMilestone" | "SpotAvailable" | "HighDemand"
   }
 
-  // Update the mapNotificationType to preserve event-specific types
-  private mapNotificationType(type: string): string {
-    // Don't map event-specific types, return them as-is for proper handling
-    const eventSpecificTypes = [
-      'EventCreated', 'EventUpdated', 'EventCancelled',
-      'RegistrationConfirmed', 'RegistrationCancelled', 
-      'EventReminder', 'EventCapacityReached'
-    ]
-    
-    if (eventSpecificTypes.includes(type)) {
-      return type // Return event-specific type unchanged
-    }
-
-    // Map basic notification types
-    const typeMap: Record<string, string> = {
-      'success': 'success',
-      'warning': 'warning', 
-      'error': 'error',
-      'info': 'info'
-    }
-    
-    return typeMap[type] || 'info'
+  // Map basic notification types
+  const typeMap: Record<string, "error" | "info" | "success" | "warning"> = {
+    'success': 'success',
+    'warning': 'warning', 
+    'error': 'error',
+    'info': 'info'
   }
+  
+  return typeMap[type] || 'info'
+}
 
   private getDefaultTitle(type?: string): string {
     const titleMap: Record<string, string> = {
@@ -618,114 +630,79 @@ class RobustSignalRService {
   }
 
   private handleSpecificNotificationActions(notification: NotificationData, eventType?: string): void {
-    const type = notification.type || eventType
-    const { data } = notification
+  const type = notification.type || eventType
+  const { data } = notification
 
-    console.log(`SignalR: Handling specific actions for ${type}`, data)
+  console.log(`SignalR: Handling specific actions for ${type}`, data)
 
-    switch (type) {
-      case 'EventCreated':
-        this.invalidateEventsCache()
-        this.showSuccessToast('A new event is now available for registration!')
-        break
+  // Always dispatch to Redux store for styled notifications
+  store.dispatch(addNotification({
+    id: notification.id || `signalr-${Date.now()}`,
+    type: type as any,
+    title: notification.title,
+    message: notification.message,
+    timestamp: Date.now(),
+    read: false,
+    data: notification.data,
+    actionUrl: notification.actionUrl
+  }))
+
+  // Handle specific actions based on type
+  switch (type) {
+    case 'EventCreated':
+      this.invalidateEventsCache()
+      // Remove generic toast - let Redux handle the styled notification
+      break
+    
+    case 'EventUpdated':
+    case 'MoreSpotsAvailable':
+      if (data?.eventId) {
+        this.invalidateEventCache(data.eventId)
+      }
+      this.invalidateEventsCache()
+      break
+    
+    case 'EventCancelled':
+      if (data?.eventId) {
+        this.invalidateEventCache(data.eventId)
+      }
+      this.invalidateEventsCache()
+      this.invalidateRegistrationsCache()
+      break
+    
+    case 'RegistrationConfirmed':
+      this.invalidateRegistrationsCache()
+      if (data?.eventId) {
+        this.invalidateEventCache(data.eventId)
+        this.invalidateEventRegistrationsCache(data.eventId)
+      }
+      break
+    
+    case 'RegistrationCancelled':
+      this.invalidateRegistrationsCache()
+      if (data?.eventId) {
+        this.invalidateEventCache(data.eventId)
+        this.invalidateEventRegistrationsCache(data.eventId)
+      }
+      break
+    
+    case 'EventReminder':
+      // No additional cache invalidation needed
+      break
       
-      case 'EventUpdated':
-        if (data?.eventId) {
-          this.invalidateEventCache(data.eventId)
-        }
-        this.invalidateEventsCache()
-        this.showWarningToast('An event you\'re registered for has been updated.')
-        break
-      
-      case 'EventCancelled':
-        if (data?.eventId) {
-          this.invalidateEventCache(data.eventId)
-        }
-        this.invalidateEventsCache()
-        this.invalidateRegistrationsCache()
-        this.showErrorToast('An event you were registered for has been cancelled.')
-        break
-      
-      case 'RegistrationConfirmed':
-        this.invalidateRegistrationsCache()
-        if (data?.eventId) {
-          this.invalidateEventCache(data.eventId)
-          this.invalidateEventRegistrationsCache(data.eventId)
-        }
-        this.showSuccessToast('Your event registration has been confirmed!')
-        break
-      
-      case 'RegistrationCancelled':
-        this.invalidateRegistrationsCache()
-        if (data?.eventId) {
-          this.invalidateEventCache(data.eventId)
-          this.invalidateEventRegistrationsCache(data.eventId)
-        }
-        this.showWarningToast('Your event registration has been cancelled.')
-        break
-      
-      case 'EventReminder':
-        const hoursUntil = data?.hoursUntilEvent
-        const timeText = hoursUntil ? 
-          (hoursUntil < 24 ? `${hoursUntil} hours` : `${Math.ceil(hoursUntil / 24)} days`) : 
-          'soon'
-        this.showInfoToast(`Reminder: Your event starts ${timeText}!`)
-        break
-      
-      case 'EventCapacityReached':
-        this.showWarningToast('An event has reached full capacity.')
-        if (data?.eventId) {
-          this.invalidateEventCache(data.eventId)
-        }
-        break
-    }
+    case 'EventCapacityReached':
+      if (data?.eventId) {
+        this.invalidateEventCache(data.eventId)
+      }
+      break
+
+    case 'LiveEventUpdate':
+      if (data?.eventId) {
+        this.invalidateEventCache(data.eventId)
+      }
+      break
   }
-
-  // Toast notification helpers
-  private showSuccessToast(message: string): void {
-    store.dispatch(addNotification({
-      id: `toast-success-${Date.now()}`,
-      type: 'success',
-      title: 'Success',
-      message,
-      timestamp: Date.now(),
-      read: false
-    }))
-  }
-
-  private showWarningToast(message: string): void {
-    store.dispatch(addNotification({
-      id: `toast-warning-${Date.now()}`,
-      type: 'warning', 
-      title: 'Notice',
-      message,
-      timestamp: Date.now(),
-      read: false
-    }))
-  }
-
-  private showErrorToast(message: string): void {
-    store.dispatch(addNotification({
-      id: `toast-error-${Date.now()}`,
-      type: 'error',
-      title: 'Important',
-      message,
-      timestamp: Date.now(),
-      read: false
-    }))
-  }
-
-  private showInfoToast(message: string): void {
-    store.dispatch(addNotification({
-      id: `toast-info-${Date.now()}`,
-      type: 'info',
-      title: 'Information',
-      message,
-      timestamp: Date.now(),
-      read: false
-    }))
-  }
-
+}
   // Cache invalidation methods
   private invalidateEventsCache(): void {
     console.log('SignalR: Invalidating events cache')

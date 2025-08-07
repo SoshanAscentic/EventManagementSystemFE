@@ -39,14 +39,8 @@ const notificationTypeConfigs: Record<string, NotificationTypeConfig> = {
     borderColor: 'border-red-200',
     priority: 4
   },
-  'info': {
-    icon: 'Info',
-    color: 'text-blue-600',
-    bgColor: 'bg-blue-50', 
-    borderColor: 'border-blue-200',
-    priority: 1
-  },
-  // Event-specific types
+
+  //Event Specific Types
   'EventCreated': {
     icon: 'Calendar',
     color: 'text-green-600',
@@ -60,13 +54,6 @@ const notificationTypeConfigs: Record<string, NotificationTypeConfig> = {
     bgColor: 'bg-blue-50',
     borderColor: 'border-blue-200',
     priority: 2
-  },
-  'EventCancelled': {
-    icon: 'X',
-    color: 'text-red-600',
-    bgColor: 'bg-red-50',
-    borderColor: 'border-red-200',
-    priority: 4
   },
   'RegistrationConfirmed': {
     icon: 'CheckCircle',
@@ -82,19 +69,26 @@ const notificationTypeConfigs: Record<string, NotificationTypeConfig> = {
     borderColor: 'border-orange-200',
     priority: 3
   },
-  'EventReminder': {
-    icon: 'Clock',
+  'RegistrationMilestone': {
+    icon: 'Trophy',
     color: 'text-purple-600',
     bgColor: 'bg-purple-50',
     borderColor: 'border-purple-200',
+    priority: 2
+  },
+  'SpotAvailable': {
+    icon: 'UserPlus',
+    color: 'text-blue-600',
+    bgColor: 'bg-blue-50',
+    borderColor: 'border-blue-200',
     priority: 3
   },
-  'EventCapacityReached': {
-    icon: 'Users',
-    color: 'text-yellow-600',
-    bgColor: 'bg-yellow-50',
-    borderColor: 'border-yellow-200',
-    priority: 3
+  'HighDemand': {
+    icon: 'TrendingUp',
+    color: 'text-red-600',
+    bgColor: 'bg-red-50',
+    borderColor: 'border-red-200',
+    priority: 4
   }
 }
 
@@ -105,7 +99,10 @@ const eventTypeConfigs: Record<string, { emoji: string, description: string }> =
   'RegistrationConfirmed': { emoji: '✅', description: 'Registration confirmed' },
   'RegistrationCancelled': { emoji: '🚫', description: 'Registration cancelled' },
   'EventReminder': { emoji: '⏰', description: 'Event reminder' },
-  'EventCapacityReached': { emoji: '🏆', description: 'Event full' }
+  'EventCapacityReached': { emoji: '🏆', description: 'Event full' },
+  'RegistrationMilestone': { emoji: '🎯', description: 'Registration milestone reached' },
+  'SpotAvailable': { emoji: '🎪', description: 'New spot available' },
+  'HighDemand': { emoji: '🔥', description: 'High demand event' }
 }
 
 export const NotificationPanel = () => {
@@ -196,13 +193,24 @@ export const NotificationPanel = () => {
 
   const getNotificationStyles = (notification: any) => {
     const config = notificationTypeConfigs[notification.type]
-    return {
+    const baseStyles = {
       color: config?.color || 'text-blue-600',
       bgColor: config?.bgColor || 'bg-blue-50',
       borderColor: config?.borderColor || 'border-blue-200'
     }
-  }
 
+    // If read, make the colors more muted but preserve the type-specific hue
+    if (notification.read) {
+      return {
+        color: baseStyles.color.replace('600', '500'), // Slightly less intense
+        bgColor: baseStyles.bgColor.replace('50', '25'), // More subtle background
+        borderColor: baseStyles.borderColor.replace('200', '150') // Softer border
+      }
+    }
+
+    return baseStyles
+  }
+  
   const getRelativeTime = (timestamp: number) => {
     const now = Date.now()
     const diff = now - timestamp
@@ -222,7 +230,7 @@ export const NotificationPanel = () => {
       // Test all notification types
       {
         id: `test-event-created-${Date.now()}`,
-        type: 'EventCreated',
+        type: 'EventCreated' as const,
         title: '🎉 New Event Available',
         message: 'A new workshop "Advanced React Patterns" has been created.',
         timestamp: Date.now(),
@@ -231,7 +239,7 @@ export const NotificationPanel = () => {
       },
       {
         id: `test-registration-confirmed-${Date.now()}`,
-        type: 'RegistrationConfirmed', 
+        type: 'RegistrationConfirmed' as const, 
         title: '✅ Registration Confirmed',
         message: 'Your registration for "JavaScript Conference 2025" has been confirmed.',
         timestamp: Date.now(),
@@ -240,7 +248,7 @@ export const NotificationPanel = () => {
       },
       {
         id: `test-event-cancelled-${Date.now()}`,
-        type: 'EventCancelled',
+        type: 'EventCancelled' as const,
         title: '❌ Event Cancelled',
         message: 'The "React Workshop" has been cancelled due to low enrollment.',
         timestamp: Date.now(),
@@ -249,7 +257,7 @@ export const NotificationPanel = () => {
       },
       {
         id: `test-event-reminder-${Date.now()}`,
-        type: 'EventReminder',
+        type: 'EventReminder' as const,
         title: '⏰ Event Reminder',
         message: 'Reminder: "React Workshop" starts in 2 hours.',
         timestamp: Date.now(),
@@ -258,7 +266,7 @@ export const NotificationPanel = () => {
       },
       {
         id: `test-capacity-reached-${Date.now()}`,
-        type: 'EventCapacityReached',
+        type: 'EventCapacityReached' as const,
         title: '🏆 Event Full',
         message: 'The "JavaScript Conference 2025" has reached maximum capacity.',
         timestamp: Date.now(),
@@ -267,7 +275,7 @@ export const NotificationPanel = () => {
       },
       {
         id: `test-registration-cancelled-${Date.now()}`,
-        type: 'RegistrationCancelled',
+        type: 'RegistrationCancelled' as const,
         title: '🚫 Registration Cancelled',
         message: 'Your registration for "Vue.js Workshop" has been cancelled.',
         timestamp: Date.now(),
@@ -521,7 +529,7 @@ export const NotificationPanel = () => {
           <div className="space-y-3">
             {filteredNotifications.map(notification => {
               const styles = getNotificationStyles(notification)
-              const eventConfig = eventTypeConfigs[notification.data?.notificationType] || 
+              const eventConfig = eventTypeConfigs[notification.type] || 
                                 eventTypeConfigs[notification.title?.split(' ')[0]] // Try to match by title
               
               return (

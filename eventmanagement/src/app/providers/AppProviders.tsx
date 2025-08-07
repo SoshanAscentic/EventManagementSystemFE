@@ -1,5 +1,6 @@
 import { Provider } from 'react-redux'
 import { store } from '@/app/store/store'
+import { SignalRProvider } from '@/shared/components/SignalRProvider'
 
 interface AppProvidersProps {
   children: React.ReactNode
@@ -8,7 +9,9 @@ interface AppProvidersProps {
 export const AppProviders = ({ children }: AppProvidersProps) => {
   return (
     <Provider store={store}>
-      {children}
+      <SignalRProvider>
+        {children}
+      </SignalRProvider>
     </Provider>
   )
 }

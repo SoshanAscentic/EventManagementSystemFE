@@ -1,15 +1,12 @@
 import { useEffect } from 'react'
 import { useSignalR } from './useSignalR'
 
-/**
- * Hook to automatically join/leave event groups when viewing event details
- */
 export const useEventSignalR = (eventId?: number) => {
-  const { isConnected, isConnecting, joinEventGroup, leaveEventGroup } = useSignalR()
+  const { isConnected, joinEventGroup, leaveEventGroup } = useSignalR()
 
   useEffect(() => {
-    if (isConnected && eventId && !isConnecting) {
-      // Add a small delay to ensure connection is fully established
+    if (isConnected && eventId) {
+      // Join event group when connected and eventId is available
       const timer = setTimeout(() => {
         joinEventGroup(eventId)
       }, 500)
@@ -22,11 +19,10 @@ export const useEventSignalR = (eventId?: number) => {
         }
       }
     }
-  }, [isConnected, isConnecting, eventId, joinEventGroup, leaveEventGroup])
+  }, [isConnected, eventId, joinEventGroup, leaveEventGroup])
 
   return {
     isConnected,
-    isConnecting,
     eventId
   }
 }
