@@ -51,11 +51,11 @@ jobs:
           echo "Checking if dist folder exists:"
           ls -la dist/ || echo "dist folder not found"
           echo "Copying config file:"
-          cp public/.staticwebapp.config.json dist/.staticwebapp.config.json
+          cp public/staticwebapp.config.json dist/staticwebapp.config.json
           echo "Verifying config file was copied:"
-          ls -la dist/.staticwebapp.config.json
+          ls -la dist/staticwebapp.config.json
           echo "Contents of copied config file:"
-          cat dist/.staticwebapp.config.json
+          cat dist/staticwebapp.config.json
           
       - name: Deploy
         id: builddeploy
