@@ -9,7 +9,7 @@ interface NotificationData {
   id: string
   title: string
   message: string
-  type: string
+  type: string | number // Accept both string and number
   createdAt: string
   userId?: number
   userEmail?: string
@@ -39,25 +39,15 @@ class RobustSignalRService {
   private connectionPromise: Promise<void> | null = null
   private shouldConnect = true
   private lastConnectionAttempt = 0
-  private readonly CONNECTION_THROTTLE = 2000 // Reduced from 5000ms to 2000ms
+  private readonly CONNECTION_THROTTLE = 2000
   private reconnectAttempts = 0
   private maxReconnectAttempts = 10
   private isPageVisible = true
   private networkOnline = true
   private tokenRefreshInProgress = false
 
-  // Enhanced reconnection strategy - more frequent attempts
   private readonly RECONNECT_DELAYS = [
-    0,      // Immediate
-    1000,   // 1 second
-    2000,   // 2 seconds  
-    5000,   // 5 seconds
-    10000,  // 10 seconds
-    15000,  // 15 seconds
-    30000,  // 30 seconds
-    60000,  // 1 minute
-    120000, // 2 minutes
-    300000  // 5 minutes
+    0, 1000, 2000, 5000, 10000, 15000, 30000, 60000, 120000, 300000
   ]
 
   constructor() {
@@ -65,7 +55,6 @@ class RobustSignalRService {
   }
 
   private setupBrowserEventListeners(): void {
-    // Handle browser tab visibility changes
     if (typeof document !== 'undefined') {
       document.addEventListener('visibilitychange', () => {
         this.isPageVisible = !document.hidden
@@ -73,12 +62,11 @@ class RobustSignalRService {
         
         if (this.isPageVisible && !this.isConnected && this.shouldConnect) {
           console.log('SignalR: Page became visible, attempting reconnection...')
-          setTimeout(() => this.start(), 1000) // Small delay to ensure page is fully active
+          setTimeout(() => this.start(), 1000)
         }
       })
     }
 
-    // Handle network online/offline events
     if (typeof window !== 'undefined') {
       window.addEventListener('online', () => {
         this.networkOnline = true
@@ -94,11 +82,9 @@ class RobustSignalRService {
         store.dispatch(setConnectionStatus('disconnected'))
       })
 
-      // Initialize network state
       this.networkOnline = navigator.onLine
     }
 
-    // Handle browser beforeunload to gracefully disconnect
     if (typeof window !== 'undefined') {
       window.addEventListener('beforeunload', () => {
         this.shouldConnect = false
@@ -110,7 +96,6 @@ class RobustSignalRService {
   }
 
   async start(): Promise<void> {
-    // Check if conditions are right for connection
     if (!this.shouldConnect) {
       console.log('SignalR: Connection disabled')
       return
@@ -126,7 +111,6 @@ class RobustSignalRService {
       return
     }
 
-    // Throttle connection attempts with exponential backoff
     const now = Date.now()
     const minDelay = this.CONNECTION_THROTTLE * Math.pow(2, Math.min(this.reconnectAttempts, 5))
     
@@ -136,30 +120,26 @@ class RobustSignalRService {
     }
     this.lastConnectionAttempt = now
 
-    // Return existing connection attempt if in progress
     if (this.connectionPromise) {
       console.log('SignalR: Connection attempt already in progress')
       return this.connectionPromise
     }
 
-    // Skip if already connected
     if (this.isConnected && this.connection?.state === signalR.HubConnectionState.Connected) {
       console.log('SignalR: Already connected')
-      this.reconnectAttempts = 0 // Reset counter on successful connection
+      this.reconnectAttempts = 0
       return Promise.resolve()
     }
 
-    // Create and store the connection promise
     this.connectionPromise = this.connectInternal()
     
     try {
       await this.connectionPromise
-      this.reconnectAttempts = 0 // Reset on successful connection
+      this.reconnectAttempts = 0
     } catch (error) {
       this.reconnectAttempts++
       console.warn(`SignalR: Connection attempt ${this.reconnectAttempts} failed:`, error)
       
-      // Give up after max attempts
       if (this.reconnectAttempts >= this.maxReconnectAttempts) {
         console.error('SignalR: Max reconnection attempts reached, giving up')
         this.shouldConnect = false
@@ -185,7 +165,6 @@ class RobustSignalRService {
     store.dispatch(setConnectionStatus('connecting'))
 
     try {
-      // Get fresh token with retry logic
       const token = await this.getValidToken()
       
       if (!token) {
@@ -195,7 +174,6 @@ class RobustSignalRService {
         return
       }
 
-      // Stop existing connection
       if (this.connection) {
         try {
           await this.connection.stop()
@@ -210,27 +188,22 @@ class RobustSignalRService {
         return
       }
 
-      // Create new connection with enhanced configuration
       this.connection = new signalR.HubConnectionBuilder()
         .withUrl(`${getApiBaseUrl()}/notificationHub`, {
           accessTokenFactory: async () => {
-            // Always get fresh token for each request
             const freshToken = await this.getValidToken()
             console.log('SignalR: Using token for request:', freshToken ? 'Present' : 'Missing')
             return freshToken || ''
           },
           withCredentials: true,
-          // Enhanced transport configuration with proper fallbacks
           transport: signalR.HttpTransportType.WebSockets | 
                     signalR.HttpTransportType.ServerSentEvents | 
                     signalR.HttpTransportType.LongPolling,
           skipNegotiation: false,
-          // Add timeout configurations
-          timeout: 30000, // 30 seconds
+          timeout: 30000,
         })
         .withAutomaticReconnect({
           nextRetryDelayInMilliseconds: (retryContext) => {
-            // Custom reconnection strategy
             const delay = this.RECONNECT_DELAYS[Math.min(retryContext.previousRetryCount, this.RECONNECT_DELAYS.length - 1)]
             console.log(`SignalR: Next reconnection attempt in ${delay}ms (attempt ${retryContext.previousRetryCount + 1})`)
             return delay
@@ -266,10 +239,8 @@ class RobustSignalRService {
       
       store.dispatch(setConnectionStatus('connected'))
       
-      // Join user-specific group
       await this.joinUserGroup()
       
-      // Show success notification on reconnection
       if (this.reconnectAttempts > 0) {
         store.dispatch(addNotification({
           id: `signalr-reconnected-${Date.now()}`,
@@ -287,8 +258,7 @@ class RobustSignalRService {
       this.isConnected = false
       store.dispatch(setConnectionStatus('disconnected'))
       
-      // Show user-friendly error message
-      if (this.reconnectAttempts === 0) { // Only show on first failure
+      if (this.reconnectAttempts === 0) {
         store.dispatch(addNotification({
           id: `signalr-connection-error-${Date.now()}`,
           type: 'warning',
@@ -312,14 +282,12 @@ class RobustSignalRService {
         return null
       }
 
-      // Check if token is about to expire (within 5 minutes)
       const tokenPayload = this.parseJwtPayload(token)
       if (tokenPayload && tokenPayload.exp) {
-        const expirationTime = tokenPayload.exp * 1000 // Convert to milliseconds
+        const expirationTime = tokenPayload.exp * 1000
         const currentTime = Date.now()
         const timeUntilExpiry = expirationTime - currentTime
         
-        // If token expires within 5 minutes, try to refresh
         if (timeUntilExpiry < 5 * 60 * 1000 && !this.tokenRefreshInProgress) {
           console.log('SignalR: Token expires soon, attempting refresh...')
           token = await this.refreshToken() || token
@@ -363,7 +331,6 @@ class RobustSignalRService {
         return null
       }
 
-      // Call your refresh endpoint
       const response = await fetch(`${getApiBaseUrl()}/api/auth/refresh`, {
         method: 'POST',
         headers: {
@@ -375,7 +342,6 @@ class RobustSignalRService {
       if (response.ok) {
         const data = await response.json()
         if (data.success && data.data) {
-          // Store new tokens
           document.cookie = `accessToken=${data.data.accessToken}; path=/; secure; samesite=lax; expires=${new Date(data.data.expiresAt).toUTCString()}`
           
           const refreshExpiry = new Date()
@@ -453,13 +419,11 @@ class RobustSignalRService {
   private setupEventHandlers(): void {
     if (!this.connection) return
 
-    // Enhanced connection state management
     this.connection.onclose((error) => {
       console.log('🔴 SignalR: Connection closed', error)
       this.isConnected = false
       store.dispatch(setConnectionStatus('disconnected'))
       
-      // If we should stay connected, attempt reconnection
       if (this.shouldConnect && this.networkOnline && this.isPageVisible) {
         console.log('SignalR: Connection closed unexpectedly, will attempt reconnection...')
       }
@@ -477,10 +441,8 @@ class RobustSignalRService {
       this.reconnectAttempts = 0
       store.dispatch(setConnectionStatus('connected'))
       
-      // Rejoin user group after reconnection
       this.joinUserGroup().catch(console.warn)
       
-      // Show reconnection success
       store.dispatch(addNotification({
         id: `signalr-auto-reconnected-${Date.now()}`,
         type: 'success',
@@ -491,7 +453,6 @@ class RobustSignalRService {
       }))
     })
 
-    // Register ALL specific notification event listeners
     const notificationEvents = [
       'ReceiveNotification',
       'NotificationSent', 
@@ -514,7 +475,6 @@ class RobustSignalRService {
       this.connection!.on(eventName, (notification: NotificationData) => {
         console.log(`🔔 SignalR: Received ${eventName}:`, notification)
         
-        // Ensure the notification has the correct type
         const processedNotification = {
           ...notification,
           type: notification.type || eventName
@@ -527,77 +487,155 @@ class RobustSignalRService {
     console.log(`SignalR: Registered ${notificationEvents.length} notification event handlers`)
   }
 
+  // FIXED: Enhanced notification handling with store verification
   private handleNotification(notification: NotificationData, eventType?: string): void {
-  console.log('🔔 SignalR: Processing notification:', notification, 'Event Type:', eventType)
-
-  try {
-    const mappedType = this.mapNotificationType(notification.type || eventType || 'info')
+    console.log('🔔 SignalR: Processing notification:', notification, 'Event Type:', eventType)
     
-    const frontendNotification = {
-      id: notification.id || `${eventType}-${Date.now()}`,
-      type: mappedType, // ✅ Use the mapped type
-      title: notification.title || this.getDefaultTitle(notification.type || eventType),
-      message: notification.message || 'You have a new notification',
-      timestamp: notification.createdAt ? new Date(notification.createdAt).getTime() : Date.now(),
-      read: false,
-      data: notification.data || {},
-      actionUrl: notification.actionUrl
+    try {
+      const mappedType = this.mapNotificationType(notification.type || eventType || 'info')
+      console.log('🔍 Debug - Original type:', notification.type, '-> Mapped type:', mappedType)
+      
+      const frontendNotification = {
+        id: notification.id || `signalr-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        type: mappedType,
+        title: notification.title || this.getDefaultTitle(mappedType),
+        message: notification.message || 'You have a new notification',
+        timestamp: notification.createdAt ? new Date(notification.createdAt).getTime() : Date.now(),
+        read: false,
+        data: notification.data || {},
+        actionUrl: notification.actionUrl,
+        persistent: true,
+        showInToast: true,
+      }
+
+      console.log('🔔 SignalR: Dispatching notification to store...')
+      
+      // CRITICAL: Verify store exists and get current state
+      if (!store) {
+        console.error('❌ Redux store not found!')
+        return
+      }
+
+      const stateBefore = store.getState().notifications
+      console.log('📊 State BEFORE dispatch:', {
+        total: stateBefore?.notifications?.length || 0,
+        unread: stateBefore?.unreadCount || 0
+      })
+
+      // Dispatch the notification
+      store.dispatch(addNotification(frontendNotification))
+      
+      // Verify it was added
+      setTimeout(() => {
+        const stateAfter = store.getState().notifications
+        console.log('📊 State AFTER dispatch (100ms later):', {
+          total: stateAfter?.notifications?.length || 0,
+          unread: stateAfter?.unreadCount || 0,
+          lastNotificationId: stateAfter?.notifications?.[0]?.id?.slice(-8) || 'none',
+          lastNotificationType: stateAfter?.notifications?.[0]?.type || 'none'
+        })
+        
+        // Check if our notification was actually added
+        const found = stateAfter?.notifications?.find(n => n.id === frontendNotification.id)
+        console.log('🔍 Verification - Notification added to store:', !!found)
+        console.log('📊 Store state:', {
+          total: stateAfter?.notifications?.length || 0,
+          unread: stateAfter?.unreadCount || 0
+        })
+      }, 100)
+
+      this.showBrowserNotification(frontendNotification)
+      this.handleSpecificNotificationActions(notification, eventType)
+
+    } catch (error) {
+      console.error('❌ SignalR: Error processing notification:', error)
     }
-
-    console.log('🔔 SignalR: Dispatching frontend notification with type:', frontendNotification.type, frontendNotification)
-
-    store.dispatch(addNotification(frontendNotification))
-    this.showBrowserNotification(frontendNotification)
-    this.handleSpecificNotificationActions(notification, eventType)
-
-  } catch (error) {
-    console.error('SignalR: Error processing notification:', error)
-  }
-}
-
-  private mapNotificationType(type: string): "error" | "info" | "success" | "warning" | "EventCreated" | "EventUpdated" | "EventCancelled" | "RegistrationConfirmed" | "RegistrationCancelled" | "EventReminder" | "EventCapacityReached" | "MoreSpotsAvailable" | "LiveEventUpdate" | "RegistrationMilestone" | "SpotAvailable" | "HighDemand" {
-  // Updated list to match Redux slice
-  const eventSpecificTypes: Array<"EventCreated" | "EventUpdated" | "EventCancelled" | "RegistrationConfirmed" | "RegistrationCancelled" | "EventReminder" | "EventCapacityReached" | "MoreSpotsAvailable" | "LiveEventUpdate" | "RegistrationMilestone" | "SpotAvailable" | "HighDemand"> = [
-    'EventCreated', 
-    'EventUpdated', 
-    'EventCancelled',
-    'RegistrationConfirmed', 
-    'RegistrationCancelled', 
-    'EventReminder', 
-    'EventCapacityReached',
-    'MoreSpotsAvailable',
-    'LiveEventUpdate',
-    'RegistrationMilestone',
-    'SpotAvailable',
-    'HighDemand'
-  ]
-  
-  if (eventSpecificTypes.includes(type as any)) {
-    return type as "EventCreated" | "EventUpdated" | "EventCancelled" | "RegistrationConfirmed" | "RegistrationCancelled" | "EventReminder" | "EventCapacityReached" | "MoreSpotsAvailable" | "LiveEventUpdate" | "RegistrationMilestone" | "SpotAvailable" | "HighDemand"
   }
 
-  // Map basic notification types
-  const typeMap: Record<string, "error" | "info" | "success" | "warning"> = {
-    'success': 'success',
-    'warning': 'warning', 
-    'error': 'error',
-    'info': 'info'
+  // FIXED: Corrected type mapping based on your backend enum values
+  private mapNotificationType(type: string | number): string {
+    console.log('🔍 Mapping type:', typeof type, type)
+    
+    if (typeof type === 'number') {
+      // Based on your logs, type 9 seems to be registration-related
+      // Let's map this correctly based on the actual backend enum
+      const enumMap: Record<number, string> = {
+        0: 'info',
+        1: 'success', 
+        2: 'warning',
+        3: 'error',
+        4: 'EventCreated',
+        5: 'EventUpdated',
+        6: 'EventCancelled',
+        7: 'RegistrationConfirmed',
+        8: 'RegistrationCancelled',
+        9: 'RegistrationConfirmed', // FIXED: Based on your logs, type 9 is registration confirmed
+        10: 'EventCapacityReached',
+        11: 'RegistrationMilestone'
+      }
+      
+      const mapped = enumMap[type] || 'info'
+      console.log('🔍 Numeric type mapped:', type, '->', mapped)
+      return mapped
+    }
+    
+    const typeString = String(type).toLowerCase()
+    
+    const eventTypeMap: Record<string, string> = {
+      'eventcreated': 'EventCreated',
+      'eventupdated': 'EventUpdated', 
+      'eventcancelled': 'EventCancelled',
+      'registrationconfirmed': 'RegistrationConfirmed',
+      'registrationcancelled': 'RegistrationCancelled',
+      'eventreminder': 'EventReminder',
+      'eventcapacityreached': 'EventCapacityReached',
+      'morespotesavailable': 'MoreSpotsAvailable',
+      'liveeventupdate': 'LiveEventUpdate',
+      'registrationmilestone': 'RegistrationMilestone',
+      'spotavailable': 'SpotAvailable',
+      'highdemand': 'HighDemand'
+    }
+    
+    if (eventTypeMap[typeString]) {
+      console.log('🔍 Event type matched:', typeString, '->', eventTypeMap[typeString])
+      return eventTypeMap[typeString]
+    }
+    
+    const basicTypeMap: Record<string, string> = {
+      'success': 'success',
+      'warning': 'warning',
+      'error': 'error',
+      'info': 'info'
+    }
+    
+    const result = basicTypeMap[typeString] || 'info'
+    console.log('🔍 Final mapped type:', result)
+    return result
   }
-  
-  return typeMap[type] || 'info'
-}
 
-  private getDefaultTitle(type?: string): string {
+  private getDefaultTitle(type?: string | number): string {
+    const typeString = String(type).toLowerCase()
+    
     const titleMap: Record<string, string> = {
-      'EventCreated': 'New Event Available',
-      'EventUpdated': 'Event Updated',
-      'EventCancelled': 'Event Cancelled',
-      'RegistrationConfirmed': 'Registration Confirmed',
-      'RegistrationCancelled': 'Registration Cancelled', 
-      'EventReminder': 'Event Reminder',
-      'EventCapacityReached': 'Event Full'
+      'eventcreated': 'New Event Available',
+      'eventupdated': 'Event Updated',
+      'eventcancelled': 'Event Cancelled',
+      'registrationconfirmed': 'Registration Confirmed',
+      'registrationcancelled': 'Registration Cancelled', 
+      'eventreminder': 'Event Reminder',
+      'eventcapacityreached': 'Event Full',
+      'morespotesavailable': 'More Spots Available',
+      'liveeventupdate': 'Live Event Update',
+      'registrationmilestone': 'Registration Milestone',
+      'spotavailable': 'Spot Available',
+      'highdemand': 'High Demand Event',
+      'success': 'Success',
+      'warning': 'Warning',
+      'error': 'Error',
+      'info': 'Information'
     }
-    return titleMap[type || ''] || 'New Notification'
+    
+    return titleMap[typeString] || 'New Notification'
   }
 
   private showBrowserNotification(notification: any): void {
@@ -630,80 +668,65 @@ class RobustSignalRService {
   }
 
   private handleSpecificNotificationActions(notification: NotificationData, eventType?: string): void {
-  const type = notification.type || eventType
-  const { data } = notification
+    const type = String(notification.type || eventType).toLowerCase()
+    const { data } = notification
 
-  console.log(`SignalR: Handling specific actions for ${type}`, data)
+    console.log(`SignalR: Handling specific actions for ${type}`, data)
 
-  // Always dispatch to Redux store for styled notifications
-  store.dispatch(addNotification({
-    id: notification.id || `signalr-${Date.now()}`,
-    type: type as any,
-    title: notification.title,
-    message: notification.message,
-    timestamp: Date.now(),
-    read: false,
-    data: notification.data,
-    actionUrl: notification.actionUrl
-  }))
-
-  // Handle specific actions based on type
-  switch (type) {
-    case 'EventCreated':
-      this.invalidateEventsCache()
-      // Remove generic toast - let Redux handle the styled notification
-      break
-    
-    case 'EventUpdated':
-    case 'MoreSpotsAvailable':
-      if (data?.eventId) {
-        this.invalidateEventCache(data.eventId)
-      }
-      this.invalidateEventsCache()
-      break
-    
-    case 'EventCancelled':
-      if (data?.eventId) {
-        this.invalidateEventCache(data.eventId)
-      }
-      this.invalidateEventsCache()
-      this.invalidateRegistrationsCache()
-      break
-    
-    case 'RegistrationConfirmed':
-      this.invalidateRegistrationsCache()
-      if (data?.eventId) {
-        this.invalidateEventCache(data.eventId)
-        this.invalidateEventRegistrationsCache(data.eventId)
-      }
-      break
-    
-    case 'RegistrationCancelled':
-      this.invalidateRegistrationsCache()
-      if (data?.eventId) {
-        this.invalidateEventCache(data.eventId)
-        this.invalidateEventRegistrationsCache(data.eventId)
-      }
-      break
-    
-    case 'EventReminder':
-      // No additional cache invalidation needed
-      break
+    switch (type) {
+      case 'eventcreated':
+        this.invalidateEventsCache()
+        break
       
-    case 'EventCapacityReached':
-      if (data?.eventId) {
-        this.invalidateEventCache(data.eventId)
-      }
-      break
+      case 'eventupdated':
+      case 'morespotesavailable':
+        if (data?.eventId) {
+          this.invalidateEventCache(data.eventId)
+        }
+        this.invalidateEventsCache()
+        break
+      
+      case 'eventcancelled':
+        if (data?.eventId) {
+          this.invalidateEventCache(data.eventId)
+        }
+        this.invalidateEventsCache()
+        this.invalidateRegistrationsCache()
+        break
+      
+      case 'registrationconfirmed':
+        this.invalidateRegistrationsCache()
+        if (data?.eventId) {
+          this.invalidateEventCache(data.eventId)
+          this.invalidateEventRegistrationsCache(data.eventId)
+        }
+        break
+      
+      case 'registrationcancelled':
+        this.invalidateRegistrationsCache()
+        if (data?.eventId) {
+          this.invalidateEventCache(data.eventId)
+          this.invalidateEventRegistrationsCache(data.eventId)
+        }
+        break
+      
+      case 'eventreminder':
+        break
+        
+      case 'eventcapacityreached':
+        if (data?.eventId) {
+          this.invalidateEventCache(data.eventId)
+        }
+        break
 
-    case 'LiveEventUpdate':
-      if (data?.eventId) {
-        this.invalidateEventCache(data.eventId)
-      }
-      break
+      case 'liveeventupdate':
+        if (data?.eventId) {
+          this.invalidateEventCache(data.eventId)
+        }
+        break
+    }
   }
-}
-  // Cache invalidation methods
+
   private invalidateEventsCache(): void {
     console.log('SignalR: Invalidating events cache')
     store.dispatch(eventsApi.util.invalidateTags([
@@ -766,7 +789,6 @@ class RobustSignalRService {
     }
   }
 
-  // Public getters and utility methods
   get connectionStatus() {
     if (this.isConnecting) return 'connecting'
     return this.isConnected ? 'connected' : 'disconnected'
@@ -841,7 +863,6 @@ class RobustSignalRService {
     }
   }
 
-  // Public methods for debugging
   getConnectionStats() {
     return {
       isConnected: this.isConnected,

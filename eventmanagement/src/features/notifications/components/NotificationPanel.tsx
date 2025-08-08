@@ -64,10 +64,10 @@ const notificationTypeConfigs: Record<string, NotificationTypeConfig> = {
   },
   'RegistrationCancelled': {
     icon: 'XCircle',
-    color: 'text-orange-600',
-    bgColor: 'bg-orange-50',
-    borderColor: 'border-orange-200',
-    priority: 3
+    color: 'text-red-600',
+    bgColor: 'bg-red-50',
+    borderColor: 'border-red-200',
+    priority: 4
   },
   'RegistrationMilestone': {
     icon: 'Trophy',
@@ -89,6 +89,36 @@ const notificationTypeConfigs: Record<string, NotificationTypeConfig> = {
     bgColor: 'bg-red-50',
     borderColor: 'border-red-200',
     priority: 4
+  },
+
+  // Add these missing types:
+  'EventCancelled': {
+    icon: 'XCircle',
+    color: 'text-red-600',
+    bgColor: 'bg-red-50',
+    borderColor: 'border-red-200',
+    priority: 4
+  },
+  'EventReminder': {
+    icon: 'Clock',
+    color: 'text-blue-600',
+    bgColor: 'bg-blue-50',
+    borderColor: 'border-blue-200',
+    priority: 2
+  },
+  'EventCapacityReached': {
+    icon: 'Users',
+    color: 'text-orange-600',
+    bgColor: 'bg-orange-50',
+    borderColor: 'border-orange-200',
+    priority: 3
+  },
+  'info': {
+    icon: 'Info',
+    color: 'text-blue-600',
+    bgColor: 'bg-blue-50', 
+    borderColor: 'border-blue-200',
+    priority: 1
   }
 }
 
@@ -160,6 +190,8 @@ export const NotificationPanel = () => {
   const handleRemove = (id: string) => {
     dispatch(removeNotification(id))
   }
+
+  
 
   const handleNotificationClick = (notification: any) => {
     if (!notification.read) {
