@@ -12,6 +12,7 @@ export const MyRegistrationsPage = () => {
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [timeframeFilter, setTimeframeFilter] = useState<string>('all')
   const [cancellingId, setCancellingId] = useState<number | null>(null)
+  const [showOnlyRegistered, setShowOnlyRegistered] = useState<boolean>(false)
 
   // Fetch registrations with required parameters
   const { 
@@ -45,8 +46,13 @@ export const MyRegistrationsPage = () => {
       )
     }
 
+    // Filter out cancelled events if toggle is enabled
+    if (showOnlyRegistered) {
+      filtered = filtered.filter(reg => reg.status === 'Registered')
+    }
+
     return filtered
-  }, [allRegistrations, timeframeFilter])
+  }, [allRegistrations, timeframeFilter, showOnlyRegistered])
 
   // Get statistics for display
   const statistics = useMemo(() => {
@@ -198,6 +204,23 @@ export const MyRegistrationsPage = () => {
                   </Select>
                 </div>
 
+                <div className="flex flex-col justify-end">
+                  <Button
+                    variant={showOnlyRegistered ? "default" : "outline"}
+                    onClick={() => setShowOnlyRegistered(!showOnlyRegistered)}
+                    className={showOnlyRegistered 
+                      ? "bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white" 
+                      : "bg-white hover:bg-green-50 border-gray-200 hover:border-green-300 text-gray-700"
+                    }
+                  >
+                    <Icon 
+                      name={showOnlyRegistered ? "CheckCircle" : "Filter"} 
+                      className="mr-2 h-4 w-4" 
+                    />
+                    {showOnlyRegistered ? "Showing Registered" : "Show Registered Only"}
+                  </Button>
+                </div>
+
                 <div className="flex items-end">
                   <div className="text-sm text-gray-600">
                     Showing {filteredRegistrations.length} of {allRegistrations.length} registrations
@@ -236,6 +259,7 @@ export const MyRegistrationsPage = () => {
                   onClick={() => {
                     setStatusFilter('all')
                     setTimeframeFilter('all')
+                    setShowOnlyRegistered(false)
                   }}
                   className="bg-white hover:bg-gray-50"
                 >
