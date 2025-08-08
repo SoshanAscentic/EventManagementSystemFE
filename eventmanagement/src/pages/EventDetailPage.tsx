@@ -210,6 +210,10 @@ export const EventDetailPage = () => {
         reason: 'User requested cancellation from event detail page'
       }).unwrap()
       setShowCancelDialog(false)
+      
+      // Add this line to refetch the event data immediately
+      refetchEvent()
+      
       // The cache will be invalidated automatically
     } catch (error) {
       console.error('Failed to cancel registration:', error)

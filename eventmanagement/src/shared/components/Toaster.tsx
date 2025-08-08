@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAppSelector, useAppDispatch } from '@/app/hooks'
 import { hideToast, markAsRead } from '@/features/notifications/notificationSlice'
 import { store } from '@/app/store/store'
@@ -19,8 +20,25 @@ interface ToastNotification {
   toastDismissed?: boolean // NEW: Track if toast was dismissed
 }
 
+// Custom hook to safely use navigate
+const useSafeNavigate = () => {
+  try {
+    const navigate = useNavigate()
+    return { navigate, isRouterContext: true }
+  } catch (error) {
+    console.warn('Toaster: Not in Router context, using window.location for navigation')
+    return { 
+      navigate: (path: string) => {
+        window.location.href = path
+      }, 
+      isRouterContext: false 
+    }
+  }
+}
+
 export const Toaster = () => {
   const dispatch = useAppDispatch()
+  const { navigate, isRouterContext } = useSafeNavigate()
   
   const notificationState = useAppSelector(state => {
     console.log('🔍 Toaster useAppSelector - Notifications state:', state.notifications)
@@ -34,7 +52,8 @@ export const Toaster = () => {
     'useAppSelector unread': notificationState?.unreadCount || 0,
     'directStore notifications': directStoreState?.notifications?.length || 0,
     'directStore unread': directStoreState?.unreadCount || 0,
-    'stores match': (notificationState?.notifications?.length || 0) === (directStoreState?.notifications?.length || 0)
+    'stores match': (notificationState?.notifications?.length || 0) === (directStoreState?.notifications?.length || 0),
+    'router context': isRouterContext
   })
 
   const notifications = notificationState?.notifications || directStoreState?.notifications || []
@@ -74,18 +93,73 @@ export const Toaster = () => {
     dispatch(hideToast(id))
   }
 
-  // NEW: Mark as read when user clicks toast
+  // UPDATED: Navigation function that works with or without Router context
   const handleToastClick = (notification: ToastNotification) => {
     console.log('🍞 Toast clicked - marking as read:', notification.id)
+    console.log('🍞 Router context available:', isRouterContext)
     
     // Mark as read when user actively clicks
     if (!notification.read) {
       dispatch(markAsRead(notification.id))
     }
     
-    // Navigate if actionUrl exists
+    let targetPath = ''
+    
+    // Determine target path based on notification
     if (notification.actionUrl) {
-      window.location.href = notification.actionUrl
+      targetPath = notification.actionUrl
+    } else if (notification.data?.eventId) {
+      // Check if eventId is valid before navigating
+      const eventId = notification.data.eventId
+      if (eventId && (typeof eventId === 'string' || typeof eventId === 'number')) {
+        targetPath = `/events/${eventId}`
+      }
+    } else {
+      // Enhanced navigation logic based on notification type and user role
+      switch (notification.type) {
+        case 'RegistrationConfirmed':
+        case 'RegistrationCancelled':
+          // Users should go to their registrations page
+          targetPath = '/registrations'
+          break
+        case 'EventCreated':
+        case 'EventUpdated':
+        case 'EventCancelled':
+          // Check if this is an admin notification
+          if (notification.data?.eventId) {
+            // If notification is for admin (like "New registration received"), go to admin dashboard
+            if (notification.message?.toLowerCase().includes('registration received') || 
+                notification.message?.toLowerCase().includes('new registration') ||
+                notification.title?.toLowerCase().includes('admin')) {
+              targetPath = '/admin'
+            } else {
+              // Regular event notifications go to event details
+              targetPath = `/events/${notification.data.eventId}`
+            }
+          } else {
+            // Default to events list
+            targetPath = '/events'
+          }
+          break
+        case 'EventReminder':
+          // Event reminders should go to the specific event
+          if (notification.data?.eventId) {
+            targetPath = `/events/${notification.data.eventId}`
+          } else {
+            targetPath = '/my-registrations'
+          }
+          break
+        default:
+          // If no specific action, don't navigate anywhere
+          console.log('No navigation action defined for notification type:', notification.type)
+          return
+      }
+    }
+    
+    // Navigate to target path
+    if (targetPath) {
+      console.log('🍞 Navigating to:', targetPath, 'using:', isRouterContext ? 'React Router' : 'window.location')
+      navigate(targetPath)
     }
   }
 
@@ -111,8 +185,8 @@ export const Toaster = () => {
           <Toast
             key={notification.id}
             notification={notification}
-            onHide={hideToastOnly} // CHANGED: Use hideToastOnly instead of markAsRead
-            onClick={handleToastClick} // NEW: Only mark as read on click
+            onHide={hideToastOnly}
+            onClick={handleToastClick}
           />
         ))}
       </div>
@@ -122,11 +196,11 @@ export const Toaster = () => {
 
 const Toast = ({ 
   notification, 
-  onHide, // CHANGED: Renamed from onRemove to onHide
+  onHide,
   onClick 
 }: {
   notification: ToastNotification
-  onHide: (id: string) => void // CHANGED: This now hides instead of marking as read
+  onHide: (id: string) => void
   onClick: (notification: ToastNotification) => void
 }) => {
   console.log('🍞 Toast - Rendering:', notification.id?.slice(-8) || 'no-id', notification.type)
@@ -228,7 +302,7 @@ const Toast = ({
         style.borderColor,
         'cursor-pointer hover:shadow-xl hover:scale-105'
       )}
-      onClick={() => onClick(notification)} // This will mark as read AND navigate
+      onClick={() => onClick(notification)}
     >
       <div className="p-4">
         <div className="flex items-start">
@@ -249,13 +323,15 @@ const Toast = ({
               {notification.message || 'No message'}
             </p>
             
-            {/* Instruction for user */}
+            {/* Updated instruction for user */}
             <div className="text-xs text-gray-500 mt-2">
-              Click to read • Auto-hides in 8s (stays unread)
+              Click to read & navigate • Auto-hides in 8s
             </div>
             
-            {notification.actionUrl && (
-              <p className="text-xs text-blue-600 mt-1">Click to view event →</p>
+            {/* Updated action hint */}
+            {(notification.actionUrl || notification.data?.eventId || 
+              ['RegistrationConfirmed', 'RegistrationCancelled', 'EventCreated', 'EventUpdated', 'EventCancelled', 'EventReminder'].includes(notification.type)) && (
+              <p className="text-xs text-blue-600 mt-1">Click to navigate →</p>
             )}
           </div>
 
@@ -264,7 +340,7 @@ const Toast = ({
             onClick={(e) => {
               e.stopPropagation()
               console.log('🍞 Manual close - hiding toast (keeping unread)')
-              onHide(notification.id) // Hide but don't mark as read
+              onHide(notification.id)
             }}
             className="ml-2 p-1 hover:bg-black/10 rounded-full transition-colors"
             title="Hide toast (notification stays unread)"

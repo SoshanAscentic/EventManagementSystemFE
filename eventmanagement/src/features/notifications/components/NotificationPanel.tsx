@@ -141,6 +141,7 @@ export const NotificationPanel = () => {
   const { notifications, unreadCount } = useAppSelector(state => state.notifications)
   const [filter, setFilter] = useState<'all' | 'unread' | 'important'>('all')
   const [signalRStatus, setSignalRStatus] = useState(signalRService.connectionStatus)
+  const { isAuthenticated } = useAppSelector(state => state.auth)
 
   // Update SignalR status periodically
   useEffect(() => {
@@ -191,29 +192,67 @@ export const NotificationPanel = () => {
     dispatch(removeNotification(id))
   }
 
-  
-
   const handleNotificationClick = (notification: any) => {
-    if (!notification.read) {
-      dispatch(markAsRead(notification.id))
+    // Mark as read first
+    markAsRead(notification.id)
+    
+    // Check authentication before navigating to protected routes
+    if ((notification.type === 'RegistrationConfirmed' || notification.type === 'RegistrationCancelled')) {
+      if (!isAuthenticated) {
+        navigate('/auth/login', { 
+          state: { from: { pathname: '/registrations' } }
+        })
+        return
+      }
     }
-
+    
     // Navigate based on notification type and action URL
     if (notification.actionUrl) {
       navigate(notification.actionUrl)
     } else if (notification.data?.eventId) {
-      navigate(`/events/${notification.data.eventId}`)
+      // Check if eventId is valid before navigating
+      const eventId = notification.data.eventId
+      if (eventId && (typeof eventId === 'string' || typeof eventId === 'number')) {
+        navigate(`/events/${eventId}`)
+      }
     } else {
-      // Default navigation based on notification type
+      // Enhanced navigation logic based on notification type and user role
       switch (notification.type) {
         case 'RegistrationConfirmed':
         case 'RegistrationCancelled':
+          // Users should go to their registrations page
           navigate('/registrations')
           break
-        default:
+        case 'EventCreated':
+        case 'EventUpdated':
+        case 'EventCancelled':
+          // Check if this is an admin notification (usually contains eventId for management)
+          if (notification.data?.eventId) {
+            // If notification is for admin (like "New registration received"), go to admin dashboard
+            if (notification.message?.toLowerCase().includes('registration received') || 
+                notification.message?.toLowerCase().includes('new registration') ||
+                notification.title?.toLowerCase().includes('admin')) {
+              navigate('/admin')
+            } else {
+              // Regular event notifications go to event details
+              navigate(`/events/${notification.data.eventId}`)
+            }
+          } else {
+            // Default to events list
+            navigate('/events')
+          }
+          break
+        case 'EventReminder':
+          // Event reminders should go to the specific event
           if (notification.data?.eventId) {
             navigate(`/events/${notification.data.eventId}`)
+          } else {
+            navigate('/registrations')
           }
+          break
+        default:
+          // If no specific action, don't navigate anywhere
+          console.log('No navigation action defined for notification type:', notification.type)
       }
     }
   }
