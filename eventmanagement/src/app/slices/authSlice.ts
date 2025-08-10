@@ -45,11 +45,11 @@ const authSlice = createSlice({
 })
 
 // Selectors
-export const selectAuth = (state: RootState) => state.auth
-export const selectUser = (state: RootState) => state.auth.user
-export const selectIsAuthenticated = (state: RootState) => state.auth.isAuthenticated
-export const selectIsLoading = (state: RootState) => state.auth.isLoading
-export const selectIsInitialized = (state: RootState) => state.auth.isInitialized
+export const selectAuth = (state: RootState) => state.auth as AuthState
+export const selectUser = (state: RootState) => (state.auth as AuthState).user
+export const selectIsAuthenticated = (state: RootState) => (state.auth as AuthState).isAuthenticated
+export const selectIsLoading = (state: RootState) => (state.auth as AuthState).isLoading
+export const selectIsInitialized = (state: RootState) => (state.auth as AuthState).isInitialized
 
 // Memoized selectors
 export const selectUserInfo = createSelector(

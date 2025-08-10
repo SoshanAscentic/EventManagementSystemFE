@@ -25,7 +25,7 @@ setupListeners(store.dispatch)
 export type RootState = ReturnType<typeof store.getState>
 export type AppDispatch = typeof store.dispatch
 
-// CRITICAL: Make store globally available for SignalR
+// Make store globally available for SignalR
 if (typeof window !== 'undefined') {
   ;(window as any).__REDUX_STORE__ = store
 }

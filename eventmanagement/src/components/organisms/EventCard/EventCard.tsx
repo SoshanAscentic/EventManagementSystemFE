@@ -225,7 +225,7 @@ export const EventCard = ({ event, showActions = true, onDelete, variant = 'defa
       <Card className="group relative bg-white shadow-sm hover:shadow-lg transition-all duration-300 hover:-translate-y-1 border border-gray-100 hover:border-gray-200 overflow-hidden h-full">
         {/* Completed Event Overlay for Admin */}
         {completed && (
-          <div className="absolute inset-0 bg-gray-900/60 z-20 flex items-center justify-center backdrop-blur-sm">
+          <div className="absolute inset-x-0 top-0 h-1/2 bg-gray-900/60 z-20 flex items-center justify-center backdrop-blur-sm">
             <div className="bg-gray-800 text-white px-6 py-3 rounded-lg font-medium shadow-lg">
               <Icon name="Clock" className="w-5 h-5 mr-2 inline" />
               Event Completed
@@ -273,19 +273,30 @@ export const EventCard = ({ event, showActions = true, onDelete, variant = 'defa
           )}
         </div>
 
-        {/* Content Layout */}
+        {/* Content Layout - FIXED */}
         {completed ? (
-          <div className="absolute inset-x-0 bottom-0 z-30 bg-white border-t border-gray-100 p-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-3 line-clamp-2">
-              {event.title}
-            </h3>
+          <CardContent className="p-6 flex flex-col flex-1 min-h-[200px]">
+            <div className="flex-1 flex flex-col justify-center">
+              <div className="flex items-center gap-2 mb-4">
+                <Badge variant="secondary" className="bg-blue-50 text-blue-700 border-blue-200">
+                  {event.categoryName}
+                </Badge>
+                <Badge variant="outline" className="border-gray-200 text-gray-600">
+                  {event.eventType}
+                </Badge>
+              </div>
+
+              <h3 className="text-xl font-semibold text-gray-900 line-clamp-2 mb-4">
+                {event.title}
+              </h3>
+            </div>
             
             {showActions && (
-              <div className="flex gap-2">
+              <div className="flex gap-2 mt-auto">
                 <Button variant="outline" size="sm" asChild className="flex-1">
                   <Link to={`/events/${event.id}`}>
                     <Icon name="Eye" className="h-4 w-4 mr-1" />
-                    View
+                    View Details
                   </Link>
                 </Button>
                 
@@ -302,7 +313,7 @@ export const EventCard = ({ event, showActions = true, onDelete, variant = 'defa
                 </ConditionalRender>
               </div>
             )}
-          </div>
+          </CardContent>
         ) : (
           <CardContent className="p-6 flex flex-col flex-1">
             <div className="flex items-center gap-2 mb-3">
@@ -401,12 +412,12 @@ export const EventCard = ({ event, showActions = true, onDelete, variant = 'defa
     )
   }
 
-  // Default variant (public event cards)
+  // Default variant (public event cards) - FIXED
   return (
     <Card className="group relative bg-white shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-2 border border-gray-100 hover:border-gray-200 overflow-hidden h-full">
       {/* Completed Event Overlay */}
       {completed && (
-        <div className="absolute inset-0 bg-gray-900/60 z-20 flex items-center justify-center backdrop-blur-sm">
+        <div className="absolute inset-x-0 top-0 h-1/2 bg-gray-900/60 z-20 flex items-center justify-center backdrop-blur-sm">
           <div className="bg-gray-800 text-white px-6 py-3 rounded-lg font-medium shadow-lg">
             <Icon name="Clock" className="w-5 h-5 mr-2 inline" />
             Event Completed
@@ -445,15 +456,26 @@ export const EventCard = ({ event, showActions = true, onDelete, variant = 'defa
         )}
       </div>
 
-      {/* Content Layout */}
+      {/* Content Layout - FIXED */}
       {completed ? (
-        <div className="absolute inset-x-0 bottom-0 z-30 bg-white border-t border-gray-100 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4 line-clamp-2">
-            {event.title}
-          </h3>
+        <CardContent className="p-6 flex flex-col flex-1 min-h-[200px]">
+          <div className="flex-1 flex flex-col justify-center">
+            <div className="flex items-center gap-2 mb-4">
+              <Badge variant="secondary" className="bg-blue-50 text-blue-700 border-blue-200">
+                {event.categoryName}
+              </Badge>
+              <Badge variant="outline" className="border-gray-200 text-gray-600">
+                {event.eventType}
+              </Badge>
+            </div>
+
+            <h3 className="text-xl font-semibold text-gray-900 mb-4 line-clamp-2">
+              {event.title}
+            </h3>
+          </div>
           
           {showActions && (
-            <div className="flex gap-3">
+            <div className="flex gap-3 mt-auto">
               <Button variant="outline" size="sm" className="flex-1" asChild>
                 <Link to={`/events/${event.id}`}>
                   <Icon name="Eye" className="w-4 h-4 mr-2" />
@@ -462,7 +484,7 @@ export const EventCard = ({ event, showActions = true, onDelete, variant = 'defa
               </Button>
             </div>
           )}
-        </div>
+        </CardContent>
       ) : (
         <CardContent className="p-6 flex flex-col flex-1">
           <div className="flex items-center gap-2 mb-4">
