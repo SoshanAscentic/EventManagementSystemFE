@@ -263,7 +263,7 @@ export const DashboardPage = () => {
                           </div>
                           {notification.data?.eventId && (
                             <Button variant="outline" size="sm" className="w-full sm:w-auto mt-2 sm:mt-0" asChild>
-                              <Link to={`/admin/events/${notification.data.eventId}`}>
+                              <Link to={`/events/${notification.data.eventId}`}>
                                 <Icon name="Eye" className="mr-2 h-3 w-3" />
                                 <span className="sm:hidden">View</span>
                                 <span className="hidden sm:inline">View Event</span>
