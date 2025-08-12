@@ -188,7 +188,7 @@ export const DashboardPage = () => {
                         </div>
                       </div>
                       <Button variant="outline" size="sm" className="w-full sm:w-auto mt-2 sm:mt-0" asChild>
-                        <Link to={`/admin/events/${event.id}`}>
+                        <Link to={`/events/${event.id}`}>
                           <Icon name="Eye" className="mr-2 h-3 w-3" />
                           <span className="sm:hidden">View</span>
                           <span className="hidden sm:inline">View Event</span>

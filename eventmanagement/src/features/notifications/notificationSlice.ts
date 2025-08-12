@@ -1,4 +1,5 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit'
+import { NotificationSound } from '@/shared/utils/notificationSound'
 
 interface Notification {
   id: string
@@ -32,34 +33,17 @@ const notificationSlice = createSlice({
   reducers: {
     addNotification: (state, action: PayloadAction<Notification>) => {
       const notification = {
+        ...action.payload,
         id: action.payload.id || Date.now().toString(),
-        type: action.payload.type || 'info',
-        title: action.payload.title || 'Notification',
-        message: action.payload.message || 'You have a new notification',
         timestamp: action.payload.timestamp || Date.now(),
-        read: false,
-        data: action.payload.data || {},
-        actionUrl: action.payload.actionUrl,
-        persistent: action.payload.persistent ?? true,
-        showInToast: action.payload.showInToast ?? true,
-        toastDismissed: false, // NEW: Initially false
+        read: action.payload.read || false,
       }
-
-      console.log('📦 Redux - Adding notification:', notification)
-
+      
       state.notifications.unshift(notification)
-
-      if (state.notifications.length > 50) {
-        state.notifications = state.notifications.slice(0, 50)
-      }
-
       state.unreadCount += 1
-
-      console.log('📦 Redux - State after adding notification:', {
-        total: state.notifications.length,
-        unread: state.unreadCount,
-        latest: notification.title
-      })
+      
+      // Play notification sound
+      NotificationSound.playNotificationByType(notification.type)
     },
     
     // NEW: Hide toast without marking as read
