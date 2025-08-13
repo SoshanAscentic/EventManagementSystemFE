@@ -47,20 +47,6 @@ export const EventManagementPage = () => {
   const hasNextPage = eventsData?.data?.hasNextPage || false
   const hasPreviousPage = eventsData?.data?.hasPreviousPage || false
 
-  // Debug logs - expanded
-  console.log('Events Data Full Structure:', eventsData)
-  console.log('Events Data:', { 
-    currentPage, 
-    totalPages, 
-    totalItems, 
-    hasNextPage, 
-    hasPreviousPage,
-    eventsCount: events.length,
-    statusFilter,
-    searchTerm,
-    rawData: eventsData?.data
-  })
-
   // Filter events client-side by status
   const filteredEvents = useMemo(() => {
     if (statusFilter === 'all') return events
@@ -142,7 +128,6 @@ export const EventManagementPage = () => {
   }
 
   const handlePageChange = (newPage: number) => {
-    console.log(`Changing page from ${currentPage} to ${newPage}`) // Debug log
     setCurrentPage(newPage)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -387,12 +372,6 @@ export const EventManagementPage = () => {
               Pagination is hidden when filtering. Clear filters to see all pages.
             </div>
           )}
-
-          {/* Debug info for testing */}
-          <div className="text-xs text-gray-400 p-2 bg-gray-50 border rounded mt-4">
-            <strong>Debug Info:</strong> Total Pages: {totalPages}, Status Filter: {statusFilter}, 
-            Total Items: {totalItems}, Current Page: {currentPage}
-          </div>
         </>
       ) : (
         /* Empty State */

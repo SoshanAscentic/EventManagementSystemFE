@@ -27,7 +27,7 @@ export const UserManagementPage = () => {
   } = useGetUsersQuery({
     searchTerm: searchTerm || '',
     pageNumber: currentPage,
-    pageSize: 12,
+    pageSize: 6,
     ascending: true,
   }, {
     // Keep cache but allow refetch on search change
