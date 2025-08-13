@@ -69,7 +69,7 @@ export const eventsApi = baseApi.injectEndpoints({
         }
       },
       // Fix caching issue - use the query params as part of the cache key
-      serializeQueryArgs: ({ queryArgs, endpointDefinition, endpointName }) => {
+      serializeQueryArgs: ({ queryArgs, endpointName }) => {
         return `${endpointName}(${JSON.stringify(queryArgs)})`
       },
       providesTags: (result) =>
