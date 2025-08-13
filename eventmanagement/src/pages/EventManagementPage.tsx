@@ -31,12 +31,12 @@ export const EventManagementPage = () => {
     refetch 
   } = useGetEventsQuery({
     pageNumber: currentPage,
-    pageSize: 12,
+    pageSize: 6,
     searchTerm: searchTerm || undefined,
     Ascending: false, // Newest first
   }, {
-    // Improved caching strategy
-    refetchOnMountOrArgChange: false,
+    // Improved caching strategy - refetch when pagination changes
+    refetchOnMountOrArgChange: 30, // Refetch if query is older than 30 seconds
     refetchOnFocus: false,
     refetchOnReconnect: false,
   })
@@ -47,11 +47,25 @@ export const EventManagementPage = () => {
   const hasNextPage = eventsData?.data?.hasNextPage || false
   const hasPreviousPage = eventsData?.data?.hasPreviousPage || false
 
+  // Debug logs - expanded
+  console.log('Events Data Full Structure:', eventsData)
+  console.log('Events Data:', { 
+    currentPage, 
+    totalPages, 
+    totalItems, 
+    hasNextPage, 
+    hasPreviousPage,
+    eventsCount: events.length,
+    statusFilter,
+    searchTerm,
+    rawData: eventsData?.data
+  })
+
   // Filter events client-side by status
   const filteredEvents = useMemo(() => {
     if (statusFilter === 'all') return events
     
-    return events.filter(event => {
+    const filtered = events.filter(event => {
       const now = new Date()
       const startDate = new Date(event.startDateTime)
       const isUpcoming = startDate > now
@@ -70,6 +84,9 @@ export const EventManagementPage = () => {
           return true
       }
     })
+    
+    console.log(`Filtered events: ${filtered.length} out of ${events.length} (filter: ${statusFilter})`)
+    return filtered
   }, [events, statusFilter])
 
   // Success message from location state
@@ -77,9 +94,10 @@ export const EventManagementPage = () => {
 
   // Handle search execution
   const executeSearch = useCallback(() => {
+    console.log(`Executing search: "${searchInput.trim()}" (was: "${searchTerm}")`)
     setSearchTerm(searchInput.trim())
     setCurrentPage(1) // Reset to first page when searching
-  }, [searchInput])
+  }, [searchInput, searchTerm])
 
   // Handle search input change with debounced search execution
   const handleSearchChange = useCallback((value: string) => {
@@ -124,6 +142,7 @@ export const EventManagementPage = () => {
   }
 
   const handlePageChange = (newPage: number) => {
+    console.log(`Changing page from ${currentPage} to ${newPage}`) // Debug log
     setCurrentPage(newPage)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -244,7 +263,10 @@ export const EventManagementPage = () => {
             
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <Select value={statusFilter} onValueChange={(value) => {
+                setStatusFilter(value)
+                setCurrentPage(1) // Reset to page 1 when filter changes
+              }}>
                 <SelectTrigger className="bg-white">
                   <SelectValue />
                 </SelectTrigger>
@@ -287,66 +309,90 @@ export const EventManagementPage = () => {
             ))}
           </div>
 
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 animate-fade-in" style={{animationDelay: '0.3s'}}>
-              <div className="text-sm text-gray-600">
-                Page {currentPage} of {totalPages} ({totalItems} total events)
-              </div>
-              
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={!hasPreviousPage}
-                  className="bg-white hover:bg-gray-50"
-                >
-                  <Icon name="ChevronLeft" className="w-4 h-4 mr-1" />
-                  Previous
-                </Button>
-                
-                {/* Page numbers */}
-                <div className="flex items-center gap-1">
-                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                    let pageNum: number
-                    if (totalPages <= 5) {
-                      pageNum = i + 1
-                    } else if (currentPage <= 3) {
-                      pageNum = i + 1
-                    } else if (currentPage >= totalPages - 2) {
-                      pageNum = totalPages - 4 + i
-                    } else {
-                      pageNum = currentPage - 2 + i
-                    }
-                    
-                    return (
-                      <Button
-                        key={pageNum}
-                        variant={currentPage === pageNum ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => handlePageChange(pageNum)}
-                        className={`w-10 h-10 ${currentPage === pageNum ? 'bg-blue-600 text-white' : 'bg-white hover:bg-gray-50'}`}
-                      >
-                        {pageNum}
-                      </Button>
-                    )
-                  })}
+          {/* Pagination - Only show if we have multiple pages AND not filtering client-side */}
+          {(() => {
+            const shouldShowPagination = totalPages > 1 && statusFilter === 'all'
+            console.log('Pagination Check:', { 
+              totalPages, 
+              statusFilter, 
+              shouldShowPagination,
+              condition1: totalPages > 1,
+              condition2: statusFilter === 'all'
+            })
+            
+            return shouldShowPagination ? (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 animate-fade-in" style={{animationDelay: '0.3s'}}>
+                <div className="text-sm text-gray-600">
+                  Page {currentPage} of {totalPages} ({totalItems} total events)
                 </div>
                 
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={!hasNextPage}
-                  className="bg-white hover:bg-gray-50"
-                >
-                  Next
-                  <Icon name="ChevronRight" className="w-4 h-4 ml-1" />
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={!hasPreviousPage}
+                    className="bg-white hover:bg-gray-50"
+                  >
+                    <Icon name="ChevronLeft" className="w-4 h-4 mr-1" />
+                    Previous
+                  </Button>
+                  
+                  {/* Page numbers */}
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      let pageNum: number
+                      if (totalPages <= 5) {
+                        pageNum = i + 1
+                      } else if (currentPage <= 3) {
+                        pageNum = i + 1
+                      } else if (currentPage >= totalPages - 2) {
+                        pageNum = totalPages - 4 + i
+                      } else {
+                        pageNum = currentPage - 2 + i
+                      }
+                      
+                      return (
+                        <Button
+                          key={pageNum}
+                          variant={currentPage === pageNum ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => handlePageChange(pageNum)}
+                          className={`w-10 h-10 ${currentPage === pageNum ? 'bg-blue-600 text-white' : 'bg-white hover:bg-gray-50'}`}
+                        >
+                          {pageNum}
+                        </Button>
+                      )
+                    })}
+                  </div>
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={!hasNextPage}
+                    className="bg-white hover:bg-gray-50"
+                  >
+                    Next
+                    <Icon name="ChevronRight" className="w-4 h-4 ml-1" />
+                  </Button>
+                </div>
               </div>
+            ) : null
+          })()}
+          
+          {/* Show message when filtering hides pagination */}
+          {totalPages > 1 && statusFilter !== 'all' && (
+            <div className="text-center text-sm text-gray-500 py-4">
+              Pagination is hidden when filtering. Clear filters to see all pages.
             </div>
           )}
+
+          {/* Debug info for testing */}
+          <div className="text-xs text-gray-400 p-2 bg-gray-50 border rounded mt-4">
+            <strong>Debug Info:</strong> Total Pages: {totalPages}, Status Filter: {statusFilter}, 
+            Total Items: {totalItems}, Current Page: {currentPage}
+          </div>
         </>
       ) : (
         /* Empty State */

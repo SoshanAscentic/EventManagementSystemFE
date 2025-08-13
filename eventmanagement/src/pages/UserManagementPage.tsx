@@ -31,7 +31,7 @@ export const UserManagementPage = () => {
     ascending: true,
   }, {
     // Keep cache but allow refetch on search change
-    refetchOnMountOrArgChange: false,
+    refetchOnMountOrArgChange: 30, // Refetch if query is older than 30 seconds
     refetchOnFocus: false,
     refetchOnReconnect: false,
   })

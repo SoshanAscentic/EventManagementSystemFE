@@ -91,15 +91,15 @@ export const EventsPage = () => {
     refetch: refetchEvents
   } = useGetEventsQuery({
     pageNumber: currentPage,
-    pageSize: 12,
+    pageSize: 6,
     searchTerm: searchTerm || undefined,
     categoryId: selectedCategoryId,
     eventType: selectedEventType,
     sortBy: sortBy as any,
     Ascending: ascending,
   }, {
-    // Improved caching
-    refetchOnMountOrArgChange: false,
+    // Improved caching - fixed to match EventManagementPage
+    refetchOnMountOrArgChange: 30, // Refetch if query is older than 30 seconds
     refetchOnFocus: false,
     refetchOnReconnect: false,
   })
@@ -110,6 +110,17 @@ export const EventsPage = () => {
   const totalPages = eventsData?.data?.totalPages || 1
   const hasNextPage = eventsData?.data?.hasNextPage || false
   const hasPreviousPage = eventsData?.data?.hasPreviousPage || false
+
+  // Debug logs for pagination
+  console.log('EventsPage - Events Data:', { 
+    currentPage, 
+    totalPages, 
+    totalItems, 
+    hasNextPage, 
+    hasPreviousPage,
+    eventsCount: events.length,
+    rawData: eventsData?.data
+  })
 
   // Handle search execution
   const executeSearch = useCallback(() => {
@@ -179,6 +190,7 @@ export const EventsPage = () => {
 
   // Handle pagination
   const handlePageChange = (newPage: number) => {
+    console.log(`EventsPage - Changing page from ${currentPage} to ${newPage}`) // Debug log
     setCurrentPage(newPage)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -461,69 +473,84 @@ export const EventsPage = () => {
             </div>
 
             {/* Pagination with animation */}
-            {totalPages > 1 && (
-              <div className={`flex flex-col sm:flex-row items-center justify-between gap-4 ${getAnimationClass('animate-slide-up')}`} style={getAnimationStyle(`${0.6 + events.length * 0.05}s`)}>
-                <div className="text-sm text-gray-600">
-                  Page {currentPage} of {totalPages} ({statistics.totalEvents.toLocaleString()} total events)
-                </div>
-                
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handlePageChange(currentPage - 1)}
-                    disabled={!hasPreviousPage}
-                    className="bg-white hover:bg-gray-50 transition-all duration-300 hover:shadow-md"
-                  >
-                    <Icon name="ChevronLeft" className="w-4 h-4 mr-1" />
-                    Previous
-                  </Button>
-                  
-                  {/* Page numbers with hover effects */}
-                  <div className="flex items-center gap-1">
-                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                      let pageNum: number
-                      if (totalPages <= 5) {
-                        pageNum = i + 1
-                      } else if (currentPage <= 3) {
-                        pageNum = i + 1
-                      } else if (currentPage >= totalPages - 2) {
-                        pageNum = totalPages - 4 + i
-                      } else {
-                        pageNum = currentPage - 2 + i
-                      }
-                      
-                      return (
-                        <Button
-                          key={pageNum}
-                          variant={currentPage === pageNum ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => handlePageChange(pageNum)}
-                          className={`w-10 h-10 transition-all duration-300 transform hover:scale-110 ${
-                            currentPage === pageNum 
-                              ? 'bg-blue-600 text-white shadow-lg' 
-                              : 'bg-white hover:bg-gray-50 hover:shadow-md'
-                          }`}
-                        >
-                          {pageNum}
-                        </Button>
-                      )
-                    })}
+            {(() => {
+              const shouldShowPagination = totalPages > 1
+              console.log('EventsPage - Pagination Check:', { 
+                totalPages, 
+                shouldShowPagination,
+                condition: totalPages > 1
+              })
+              
+              return shouldShowPagination ? (
+                <div className={`flex flex-col sm:flex-row items-center justify-between gap-4 ${getAnimationClass('animate-slide-up')}`} style={getAnimationStyle(`${0.6 + events.length * 0.05}s`)}>
+                  <div className="text-sm text-gray-600">
+                    Page {currentPage} of {totalPages} ({statistics.totalEvents.toLocaleString()} total events)
                   </div>
                   
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handlePageChange(currentPage + 1)}
-                    disabled={!hasNextPage}
-                    className="bg-white hover:bg-gray-50 transition-all duration-300 hover:shadow-md"
-                  >
-                    Next
-                    <Icon name="ChevronRight" className="w-4 h-4 ml-1" />
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={!hasPreviousPage}
+                      className="bg-white hover:bg-gray-50 transition-all duration-300 hover:shadow-md"
+                    >
+                      <Icon name="ChevronLeft" className="w-4 h-4 mr-1" />
+                      Previous
+                    </Button>
+                    
+                    {/* Page numbers with hover effects */}
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                        let pageNum: number
+                        if (totalPages <= 5) {
+                          pageNum = i + 1
+                        } else if (currentPage <= 3) {
+                          pageNum = i + 1
+                        } else if (currentPage >= totalPages - 2) {
+                          pageNum = totalPages - 4 + i
+                        } else {
+                          pageNum = currentPage - 2 + i
+                        }
+                        
+                        return (
+                          <Button
+                            key={pageNum}
+                            variant={currentPage === pageNum ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => handlePageChange(pageNum)}
+                            className={`w-10 h-10 transition-all duration-300 transform hover:scale-110 ${
+                              currentPage === pageNum 
+                                ? 'bg-blue-600 text-white shadow-lg' 
+                                : 'bg-white hover:bg-gray-50 hover:shadow-md'
+                            }`}
+                          >
+                            {pageNum}
+                          </Button>
+                        )
+                      })}
+                    </div>
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={!hasNextPage}
+                      className="bg-white hover:bg-gray-50 transition-all duration-300 hover:shadow-md"
+                    >
+                      Next
+                      <Icon name="ChevronRight" className="w-4 h-4 ml-1" />
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            )}
+              ) : null
+            })()}
+
+            {/* Debug info for testing */}
+            <div className="text-xs text-gray-400 p-2 bg-gray-50 border rounded mt-4">
+              <strong>Debug Info:</strong> Total Pages: {totalPages}, 
+              Total Items: {totalItems}, Current Page: {currentPage}, Events: {events.length}
+            </div>
           </>
         ) : (
           /* Empty State with animation */

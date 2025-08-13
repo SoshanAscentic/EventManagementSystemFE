@@ -162,7 +162,7 @@ export const useEventFilters = (initialFilters: EventsQueryParams = {}) => {
   const clearFilters = useCallback(() => {
     setFilters({
       pageNumber: 1,
-      pageSize: initialFilters.pageSize || 10,
+  pageSize: initialFilters.pageSize || 6,
     })
   }, [initialFilters.pageSize])
   

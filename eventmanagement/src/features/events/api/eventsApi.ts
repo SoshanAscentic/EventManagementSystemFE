@@ -37,7 +37,7 @@ const transformQueryParams = (params: EventsQueryParams) => {
     // @ts-ignore - we know this transformation is needed
     transformed.Ascending = transformed.ascending
     delete transformed.ascending
-  } else {
+  } else if (transformed.Ascending === undefined) {
     // Default to true if not provided (ascending order)
     transformed.Ascending = true
   }
@@ -56,15 +56,21 @@ export const eventsApi = baseApi.injectEndpoints({
         // Ensure we always have default values for required parameters
         const defaultParams: EventsQueryParams = {
           pageNumber: 1,
-          pageSize: 10,
+          pageSize: 6,
           Ascending: true, // Default to ascending
           ...params, // Override with provided params
         }
+        
+        console.log('Events API Query Params:', defaultParams) // Debug log
         
         return {
           url: '/events',
           params: transformQueryParams(defaultParams),
         }
+      },
+      // Fix caching issue - use the query params as part of the cache key
+      serializeQueryArgs: ({ queryArgs, endpointDefinition, endpointName }) => {
+        return `${endpointName}(${JSON.stringify(queryArgs)})`
       },
       providesTags: (result) =>
         result?.success
