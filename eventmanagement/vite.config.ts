@@ -1,23 +1,37 @@
-import path from "path"
+import { defineConfig } from 'vite'
 import tailwindcss from "@tailwindcss/vite"
-import react from "@vitejs/plugin-react"
-import { defineConfig } from "vite"
+import react from '@vitejs/plugin-react'
+import path from 'path'
 
-// https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src"),
+      '@': path.resolve(__dirname, './src'),
     },
   },
+
+  base:"/",
+  
   server: {
+    port: 5173,
+    host: true,
     proxy: {
-      '/api': {
-        target: 'http://localhost:5000',
+      '/notificationHub': {
+        target: process.env.VITE_USE_LOCAL_API === 'true' 
+          ? (process.env.VITE_LOCAL_API_URL)
+          : (process.env.VITE_PRODUCTION_API_URL),
         changeOrigin: true,
         secure: false,
+        ws: true,
       },
-    },
-  },
+      '/api': {
+        target: process.env.VITE_USE_LOCAL_API === 'true'
+          ? (process.env.VITE_LOCAL_API_URL)
+          : (process.env.VITE_PRODUCTION_API_URL),
+        changeOrigin: true,
+        secure: false,
+      }
+    }
+  }
 })

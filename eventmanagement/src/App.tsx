@@ -1,29 +1,38 @@
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+import { AppRouter } from './router/AppRouter'
+import { AppProviders } from './app/providers/AppProviders'
+import { Toaster } from './shared/components/Toaster'
+import { useAuth } from './shared/hooks/useAuth'
+import { ErrorBoundary } from './shared/components/ErrorBoundary'
+
+function AppContent() {
+  const { isLoading } = useAuth()
+  
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+          <p className="text-gray-600">Loading EventHub...</p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <>
+      <AppRouter />
+      <Toaster />
+    </>
+  )
+}
 
 function App() {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-4">
-      <Card className="w-96">
-        <CardHeader>
-          <CardTitle>Event Management System</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-muted-foreground">
-            Shadcn/ui components are working correctly!
-          </p>
-          <div className="flex gap-2">
-            <Button>Primary Button</Button>
-            <Button variant="outline">Outline Button</Button>
-          </div>
-          <div className="flex gap-2">
-            <Badge>Success</Badge>
-            <Badge variant="destructive">Error</Badge>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+    <ErrorBoundary>
+      <AppProviders>
+        <AppContent />
+      </AppProviders>
+    </ErrorBoundary>
   )
 }
 

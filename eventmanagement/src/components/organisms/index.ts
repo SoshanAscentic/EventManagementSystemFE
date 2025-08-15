@@ -1,0 +1,7 @@
+export { Header } from './Header/Header'
+export { Footer } from './Footer/Footer'
+export { Sidebar } from './Sidebar/Sidebar'
+export { EventCard } from './EventCard/EventCard'
+export { EventFilters } from './EventFilters/EventFilters'
+export { CategoryCard } from './CategoryCard/CategoryCard'
+export { UserCard } from './UserCard/UserCard'

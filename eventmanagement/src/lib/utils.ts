@@ -18,7 +18,7 @@ export function debounce<T extends (...args: any[]) => any>(
 }
 
 // Format date utility
-export function formatDate(date: Date | string, format: string = 'MMM dd, yyyy'): string {
+export function formatDate(date: Date | string, _format: string = 'MMM dd, yyyy'): string {
   const dateObj = typeof date === 'string' ? new Date(date) : date
   return dateObj.toLocaleDateString('en-US', {
     year: 'numeric',
